@@ -1,0 +1,94 @@
+[
+  {
+    "textId": 95000701,
+    "ownerId": 95000700,
+    "zhInfo": "可代为承受一次损伤",
+    "enInfo": "Absorbs damage once."
+  },
+  {
+    "textId": 95000403,
+    "ownerId": 95000400,
+    "zhInfo": "发动绝招后，回复100%绝招量表",
+    "enInfo": "Fully restores the Art gauge upon activating an Ultimate Art."
+  },
+  {
+    "textId": 95001203,
+    "ownerId": 95001200,
+    "zhInfo": "血量偏低时，触发加速和60%减伤，攻击力降低30%",
+    "enInfo": "At low HP, act faster, take 60% less damage and deal 30% less damage."
+  },
+  {
+    "textId": 95001201,
+    "ownerId": 95001200,
+    "zhInfo": "行动加快，减伤率提升60%，攻击力降低30%",
+    "enInfo": "Act faster, take 60% less damage and deal 30% less damage."
+  },
+  {
+    "textId": 95001202,
+    "ownerId": 95001200,
+    "zhSuffix": "（冷却）",
+    "enSuffix": " (Cooldown)",
+    "zhInfo": "逃跑计划暂时无法触发",
+    "enInfo": "Escape Plan is temporarily unavailable."
+  },
+  {
+    "textId": 95000500,
+    "ownerId": 95000500,
+    "zhInfo": "每层提升8%攻击力，持续15秒",
+    "enInfo": "Boosts attack power by 8% for 15 seconds. This effect accumulates."
+  },
+  {
+    "textId": 95000800,
+    "ownerId": 95000800,
+    "zhName": "隐身",
+    "enName": "Invisibility",
+    "zhInfo": "隐藏身形",
+    "enInfo": "Conceals the body."
+  },
+  {
+    "textId": 95002902,
+    "ownerId": 95002900,
+    "zhName": "专注值上限提升",
+    "enName": "Maximum FP Increased",
+    "zhInfo": "每层永久提升1%专注值上限，效果叠加时以乘算计算",
+    "enInfo": "Permanently increases maximum FP by 1% per stack. Stacks apply multiplicatively."
+  },
+  {
+    "textId": 95002503,
+    "ownerId": 95002500,
+    "zhInfo": "已激活黑夜赐福。夜雨中持续回血，雨伤随淋雨时间和当前血量提升。触碰赐福重置",
+    "enInfo": "Night's Blessing is active. Heals in the Night's Tide, but Tide damage rises with exposure time and current HP. Touch a Site of Grace to reset."
+  },
+  {
+    "textId": 95003801,
+    "ownerId": 95003800,
+    "zhInfo": "专注值消耗归零",
+    "enInfo": "Eliminates FP consumption."
+  },
+  {
+    "textId": 95003901,
+    "ownerId": 95003900,
+    "zhInfo": "大幅提升强韧度，且免疫异常累积",
+    "enInfo": "Greatly increases poise and grants immunity to status buildup."
+  },
+  {
+    "textId": 95004001,
+    "ownerId": 95004000,
+    "zhInfo": "提升50%血量上限，更容易被敌人攻击",
+    "enInfo": "Raises maximum HP by 50% and increases the likelihood of being targeted by enemies."
+  },
+  {
+    "textId": 95004800,
+    "ownerId": 95004800,
+    "zhInfo": "在强化技艺发动期间受到的伤害越多，反击造成的伤害就越高",
+    "enInfo": "The more damage you take during an enhanced skill, the more damage your counterattack deals."
+  },
+  {
+    "textId": 95005101,
+    "ownerId": 95005100,
+    "zhSuffix": "（充盈）",
+    "enSuffix": " (Charged)",
+    "zhInfo": "下次近战攻击传导静电，受击则自身漏电。",
+    "enInfo": "Your next melee hit transfers static. Getting hit discharges it onto you."
+  }
+]

@@ -1,0 +1,102 @@
+# 开发与构建
+
+独立版和 MMV 各构建一份 DLL。外部工具承担测试发放。每个目标的本机版本和分发包使用相同游戏资源与 DLL。
+
+| 入口 | 用途 |
+| --- | --- |
+| `build.ps1` | 构建独立版，`-DllOnly` 更新运行时，`-Destination <目录>` 同时导出 |
+| `build-texts.ps1` | 更新或检查中英文文案 |
+| `build-no-hotkeys.ps1 -Destination <目录>` | 兼容原命令，将当前独立版导出至已有 ME3 配置目录 |
+| `build-release.ps1` | 将当前独立版打成纯净 ZIP |
+| `build-mmv.ps1` | 构建 MMV。本机入口位于 `dist/mmv`，增加 `-Destination <外部目录>` 同时导出便携安装包 |
+
+### 首次检出
+
+NRMA 从 NRHex 的 `c83f552` 迁移。Git 保存源码、配置、原生输入和研究夹具。本地生成的 `dist/mod`、DLL、安装包和构建报告留在工作区。需要修改参数、事件或动作时，应提交相应的生成器或输入。
+
+部分构建工具以现有资源包为输入。首次构建会按 SHA-256 校验并补齐缺少的 26 份资源。可用环境变量 `NRHEX_RESOURCE_BASELINE` 指定离线 ZIP；默认也会查找 `releases/standalone-resource-baseline-c83f552.zip`。也可以从相邻的 NRHex 仓库或原远端获取固定提交。获取的对象仅缓存在 `work/`。手动恢复可运行 `python tools/restore_dist_resources.py`。
+
+## 完整构建
+
+```powershell
+./build.ps1
+./build.ps1 -NoInstall
+```
+
+完整流程校验原始输入与夹具，生成参数、文本、事件、地图、动作和特效资源，运行原生与脚本检查，再验证、编译并安装 DLL，检查 ME3 配置和记录结果。
+
+`-NoInstall` **只跳过最后的 DLL 替换**，资源和生成代码仍会更新。完整构建需要匹配版本的游戏资源与特效包；ME3 配置必须同时加载 `natives/NRHex.dll` 和 `mod` 资源包。DLL 和 INI 位于 `dist/natives`。
+
+动作构建从保留的原始输入开始，再按主脚本顺序组合补丁。不要把单项 HKS 补丁重复施加到已打补丁的文件。主脚本检查咏唱通知后加入救护车的方向查询和起步费用补丁；两种构建模式均运行救护车的原生隔离与HKS费用验证。
+
+## 仅更新 DLL
+
+```powershell
+./build.ps1 -DllOnly
+./build.ps1 -DllOnly -NoInstall
+```
+
+此模式复用现有资源，执行常规 Rust 测试，以及死亡之舞、侵蚀、潜能分裂、奖励模板、救护车、回响施放、武器倾向、小点心、一鼓作气和偷心者的编译后原生隔离验证，再编译 DLL 并检查当前游戏 EXE 签名。它不需要重新导出参数、重建动作或读取完整特效包；小点心与一鼓作气检查会回读当前参数包，也不调用 ME3。
+
+默认只替换 `dist/natives/NRHex.dll`。加 `-NoInstall` 后不修改 dist；构建记录保存在 `work/build/dll-validation.json`，不覆盖完整资源构建的验证报告。适用于互斥、抽取限制等仅修改运行时代码的任务；新增参数或资源仍须完整构建。
+
+## 文案更新
+
+中文名称与描述在 [hexes.md](hexes.md) 编辑，英文在 [hexes.en.md](hexes.en.md) 编辑，附加效果文本在 `data/text/status-effects.json` 编辑。构建以稳定的海克斯编号关联内容；描述里的数字不会自动改变机制。
+
+```powershell
+./build-texts.ps1
+./build-texts.ps1 -Check
+./build-texts.ps1 -NoInstall
+```
+
+默认仅更新 dist 的四份中英文消息容器。`-Check` 只检查当前包是否匹配文案源；`-NoInstall` 只生成并验证暂存结果。安装前备份，回读失败会恢复；不重建 DLL、参数、地图或动作。完整构建也读取相同文案源。
+
+## 群友版打包
+
+```powershell
+./build-no-hotkeys.ps1 -Destination 'D:/Mods/NRHex'
+```
+
+先构建本机独立版，再运行上述命令。导出时直接复制 `dist/natives/NRHex.dll` 与 `dist/mod`，校验 DLL 版本、必要功能及测试热键未启用，并沿用目标目录已有配置。
+
+## 纯净发行版
+
+使用 `./build-release.ps1`，复用当前 `dist/mod` 的独立版资源并检查最新中英文文案，复用同一份本机 DLL。默认输出 `releases/Mayhem Augments-<版本>/` 和同名 ZIP；可用 `-OutputDirectory` 指定其他输出父目录，已有同名发行包时停止以避免覆盖。脚本显式选择独立版条件表，不继承 MMV 构建环境。
+
+发行包包含 `mod/`、`natives/` 和 `Mayhem Augments.me3`；内部 DLL/INI 名称仍为 NRHex。ME3 配置仅加载本 Mod，不写入 `start_online`、`disable_arxan` 或开头注释，不复制个人配置、辅助 Mod、MMV、README 或构建报告。打包后验证 ME3 配置和 ZIP 全部文件哈希；报告保存在 `.work/release/`。这一步不重新生成游戏资源，资源改动须先运行对应独立版构建。
+
+## 工具和环境
+
+构建使用 PowerShell、Python、.NET 10、Rust Windows 工具链、Smithbox/SoulsFormats、ME3，以及需要动作反编译时的 DSLuaDecompiler。Python 依赖见 `tools/requirements.txt`。原始 EXE 与 regulation 必须匹配项目验证的版本。
+
+主构建入口支持：
+
+| 环境变量 | 用途 |
+| --- | --- |
+| `NRHEX_GAME` | 包含 `nightreign.exe` 和原始 `regulation.bin` 的游戏目录 |
+| `NRHEX_SMITHBOX` | Smithbox 库与参数定义目录；由底层 .NET 工具读取 |
+| `NRHEX_ME3` | ME3 可执行文件路径 |
+| `NRHEX_CARGO_FEATURES` | 可选 Cargo 特性列表；当前监牢事件配套的 DLL 使用 `cage-demand` |
+| `NRHEX_CARGO_TARGET` | 可选 Rust 编译目标，例如 `x86_64-pc-windows-gnu`；DLL 从对应目标目录安装 |
+| `NRHEX_NATIVE_EXE` | Windows 测试进程及签名检查程序所见的 EXE 路径，供 Wine 等跨目标环境使用 |
+
+未设置路径时，主脚本沿用项目所在盘的默认安装位置。其他底层历史工具仍可能包含本机路径；主脚本的环境变量支持不代表完整构建已在所有平台验证。Linux 跨目标 DLL 模式需要可用的 Windows linker 和 runner；完整资源构建还依赖对应的原始资产与压缩工具。
+
+## 验证与保留输入
+
+`dist/reports/` 集中保存验证报告和战技池清单；这些 JSON 不参与游戏加载。`dist` 根目录仅保留启动脚本、强退入口及其脚本、ME3 配置和说明，测试辅助 Mod 由外部工具管理。构建和验证工具从新位置读写报告；旧记录内的裸报告文件名相对于 `reports/` 解析，历史报告内容保持不变。
+
+整理或修改报告路径后可运行 `python tools/verify_distribution_layout.py` 和 `./tools/verify_build_entrypoints.ps1`，检查目录、旧文件名解析及构建流程；不需要重建或重启游戏。群友版仍只打包运行资源，不包含这些报告。
+
+完整构建保留已有原生、动作和资源检查，并补入此前专项入口独有的刷怪笼组合、效果同步验证。效果同步在完整构建中检查当前生成参数，不要求存在旧版本迁移的差异报告。
+
+两种主构建模式均执行常规 Rust 测试及四项编译后原生隔离验证。隔离执行只操作私有映像，不访问实际游戏进程；通过构建与签名检查不等于游戏、动作或联机验收。
+
+`./tools/verify_build_entrypoints.ps1` 用外部工具夹具检查真实主脚本的流程：完整构建、DLL模式、禁止安装、失败中止，以及跨目标产物和EXE路径。它不运行实际资源生成器或修改发行包。
+
+`assets/original/manifest.json` 和 `data/reference/manifest.json` 约束保留的输入与研究夹具。升级游戏时应重新导出、研究和更新清单，不能绕过失配检查。`.work`、`work` 与 `target` 用于生成数据和缓存，不作为原始游戏数据来源。
+
+用户维护的 CSV、INI 和其他 Mod 配置应保留。亮剑加成由目标参数自动生成，无需手填加成表。构建读取目标参数并运行 `tools/build_sword_auto.py`，以原飞行距离估算的米数直接作为百分比（保留一位小数），无可比较飞行距离为 0%，回收倍率沿用现有值。独立版生成 `src/sword_map.rs`，MMV 从合并后的参数生成专用映射，经 `NRHEX_SWORD_DATA` 交给共享运行时。直接运行 Cargo 使用已生成快照；更新参数后应先走构建入口重新导出，不能手改生成值。弹体常规上限为 6 米，详见 `docs/research/sword-auto.md`。
+
+构建后重启游戏加载 DLL、动作或文本。运行状态只读检查使用 `tools/check_loaded.py`，不继承旧版本的加载或实测结论。

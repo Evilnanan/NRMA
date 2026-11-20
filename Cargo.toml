@@ -1,0 +1,26 @@
+[package]
+name = "nrhex"
+version = "0.17.369"
+edition = "2021"
+publish = false
+
+[lib]
+name = "NRHex"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+iced-x86 = { version = "1.21", default-features = false, features = ["std", "decoder", "encoder", "block_encoder", "fast_fmt"] }
+sha2 = "0.10"
+
+[features]
+default = ["cage-demand"]
+test-hotkeys = []
+cage-lifecycle-probe = []
+cage-demand = []
+mmv-compat = []
+ram-sync-probe = []
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1

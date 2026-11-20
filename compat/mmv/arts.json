@@ -1,0 +1,1023 @@
+{
+  "schemaVersion": 1,
+  "nativeArtIds": [
+    0,
+    1,
+    2,
+    10,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    207,
+    208,
+    209,
+    210,
+    212,
+    213,
+    214,
+    216,
+    217,
+    218,
+    219,
+    220,
+    221,
+    222,
+    223,
+    224,
+    225,
+    226,
+    227,
+    228,
+    300,
+    301,
+    302,
+    303,
+    305,
+    306,
+    307,
+    308,
+    309,
+    400,
+    401,
+    402,
+    404,
+    405,
+    406,
+    407,
+    501,
+    502,
+    503,
+    504,
+    505,
+    506,
+    507,
+    508,
+    509,
+    600,
+    601,
+    602,
+    603,
+    604,
+    605,
+    606,
+    607,
+    650,
+    651,
+    652,
+    653,
+    654,
+    700,
+    701,
+    702,
+    800,
+    801,
+    802,
+    850,
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012,
+    1013,
+    1014,
+    1015,
+    1016,
+    1017,
+    1018,
+    1019,
+    1020,
+    1021,
+    1022,
+    1023,
+    1024,
+    1025,
+    1026,
+    1027,
+    1028,
+    1029,
+    1030,
+    1031,
+    1032,
+    1033,
+    1034,
+    1035,
+    1036,
+    1037,
+    1038,
+    1039,
+    1040,
+    1041,
+    1042,
+    1043,
+    1044,
+    1045,
+    1046,
+    1047,
+    1048,
+    1049,
+    1050,
+    1051,
+    1052,
+    1053,
+    1054,
+    1055,
+    1056,
+    1165,
+    1166,
+    1167,
+    1168,
+    1169,
+    1170,
+    1171,
+    1172,
+    1173,
+    1174,
+    1175,
+    1176,
+    1177,
+    1178,
+    1179,
+    1180,
+    1181,
+    1182,
+    1183,
+    1184,
+    1185,
+    1186,
+    1187,
+    1188,
+    1189,
+    1190,
+    1191,
+    1192,
+    1193,
+    1194,
+    1195,
+    1196,
+    1197,
+    1198,
+    1200,
+    9999
+  ],
+  "skills": [
+    {
+      "id": 126,
+      "name": "破碎居合",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "39a4334b3109a6eea1e66ed9b93fd8c46c82e9316bfc6bd477f714ce54bdd16b"
+    },
+    {
+      "id": 127,
+      "name": "掷羽",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "7acefede7c7416d36794d67e81b078321b2febb124e40e8a2e096db6ccc7e042"
+    },
+    {
+      "id": 128,
+      "name": "舍身剑",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "3d6364c5c976621369822f1996af343fbbb540db84485947b2f57f5be188a603"
+    },
+    {
+      "id": 129,
+      "name": "艾尔芙莉德的攻势",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "c66d2ae297afbb53da28ad1bc2bbd07d6881819337cd1f8720398f246047cf34"
+    },
+    {
+      "id": 130,
+      "name": "随兴狂王",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "5e3824e8294817f09740e08cd60a38eb6dc63a18e2a94ad64efce0930edeae58"
+    },
+    {
+      "id": 131,
+      "name": "余火之枪",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "a804a93980b25e25d2f5716d428d5279dfc7db7ed204b75ec0286be7f6d4eda5"
+    },
+    {
+      "id": 132,
+      "name": "余火之剑",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "b116fbb07dd15ab6584c404f75d0d55330956c745f72be21602545fdf3f31e17"
+    },
+    {
+      "id": 133,
+      "name": "唤岩",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "435540902328884044eebe74292648483cd4c0737b07508678c3621573d18e7d"
+    },
+    {
+      "id": 134,
+      "name": "箭步（突刺）",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "f8b01d2818618fa5bfbdbad18d6333a1b0a11008c21ec405c03b93477a0bf141"
+    },
+    {
+      "id": 135,
+      "name": "结晶刀刃",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "c98e79508c60b430c7f1fe850c05f786e9b600b7dab2c6b73b229c937bfeea40"
+    },
+    {
+      "id": 136,
+      "name": "余火巨剑",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "76ac8a3b59e435cebe0b4a2e776bf14047f6108a5d79b53bc013243b64725c7d"
+    },
+    {
+      "id": 137,
+      "name": "回旋斩",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "8b675e3180081212530410d34f1495e0644e90c67cf9aeeeca739e1a996bc2ea"
+    },
+    {
+      "id": 138,
+      "name": "洛里安的火焰",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "716df3d8913531c334a5c2d78bc1a01ba7d612fd8eea7e967d7a51f9ba188714"
+    },
+    {
+      "id": 139,
+      "name": "圣光与火焰",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "204d5b2a30c6e8c33a0ccd25da975bd5e33abd0a9e12039686d3735a5a0880b1"
+    },
+    {
+      "id": 140,
+      "name": "洛斯里克的圣光",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "d8bf291cf645ad04c96bc0ca097a7772080f7332ed192f56a16e9cd055d8d74c"
+    },
+    {
+      "id": 141,
+      "name": "玻尔多的忍耐",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "c7c18847ee6b178d93bef0823453eccbf0e39535bca875d589e7bd0dbab112cd"
+    },
+    {
+      "id": 142,
+      "name": "斩断",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "8e2e3751489c10774bc3873e4de67cb1e1a004495f2db64ad1431c20eab06ec2"
+    },
+    {
+      "id": 143,
+      "name": "地鸣",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "687a293367511c2723f8d096b3041c284d807d8555fa8e82c7a3b609b68ef5c4"
+    },
+    {
+      "id": 144,
+      "name": "箭步 (敲击)",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "7651aaf7d30564cf4c528c1fedf54df1c9105634c0df5f2303d33f757590b6c8"
+    },
+    {
+      "id": 145,
+      "name": "鬼切架势",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "17ec0fbb2890a2e6f3abb334146790dcf3b4e3a682775f78377bf2b3b7d07ce4"
+    },
+    {
+      "id": 146,
+      "name": "鬼切",
+      "enabled": false,
+      "reason": "架势内部追击，不单独随机",
+      "evidenceSha256": "25a593e08efce16c25d1c82cf2b3b5a66378d16e258679009bc26d94fd9673c1"
+    },
+    {
+      "id": 147,
+      "name": "泼洒熔岩",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "d75993aaa1ba07a8e32dac76f2f6d86d6d43d32ceb9661bc0f1ef7b9bb54b2a1"
+    },
+    {
+      "id": 148,
+      "name": "连环回旋",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "b1fb434024615c6bfac756b5ced8c94e33d6bdac7b72913914a700a952329f36"
+    },
+    {
+      "id": 149,
+      "name": "连环回旋",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "a41e30269ab8edbe2e204c16510c080b8a04f83e13ee855fcce10df7d37b0548"
+    },
+    {
+      "id": 150,
+      "name": "割喉架势",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "b91acb8d5d20e4e8e1652e6786826c849dd465fbd27d2589cae74f41071313f7"
+    },
+    {
+      "id": 151,
+      "name": "连环回旋",
+      "enabled": false,
+      "reason": "连段内部招式，无独立默认装备入口",
+      "evidenceSha256": "ba4541bd9e6b0891574a42323a291ec59ffc057b873743e908346840019f9c14"
+    },
+    {
+      "id": 152,
+      "name": "连环回旋",
+      "enabled": false,
+      "reason": "连段内部招式，无独立默认装备入口",
+      "evidenceSha256": "eaaae630ad74dd7a63c9c56a2fd275b6b3924100e146ec8b927f365a6007afdb"
+    },
+    {
+      "id": 153,
+      "name": "刺剑架势",
+      "enabled": false,
+      "reason": "内部架势，无默认装备入口",
+      "evidenceSha256": "18904ee6b3b5767b118bf8b6929685641d273e15d175d28e55b30bcff655e764"
+    },
+    {
+      "id": 154,
+      "name": "刺剑架势",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "7b3944639543e7c0cdbc62cb34ebd7c09e18bd77522167621d2aad328cb112fe"
+    },
+    {
+      "id": 155,
+      "name": "刺剑架势",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "0ba5a0337f0f489279fc5874775375c8de63d5f978b2a0778ae84470d062735c"
+    },
+    {
+      "id": 156,
+      "name": "落雷",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "c373cb95f14f5462a1a7b4c948d5658b65dd25ccf23def55554730132f1ab3be"
+    },
+    {
+      "id": 157,
+      "name": "恶魔之焰",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "286b760c11e1de93399a728e9760790360a5217d8b366f2f95da177e59c4af6d"
+    },
+    {
+      "id": 158,
+      "name": "狼剑术",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "cdec4e99a6ea0c6e71eed9c31d035f5c6fa884cd91f18d32be0c5973c1c2b003"
+    },
+    {
+      "id": 159,
+      "name": "余火",
+      "enabled": true,
+      "reason": "",
+      "evidenceSha256": "fbe001cbaccd5003446e00290020ca4360f04660790118312129630d86e89c92",
+      "behaviorOverrides": [
+        {
+          "judge": 3994,
+          "row": 300300994,
+          "sha256": "5b2942ce215ae1c4b4c5019dd48595b9244c9f1cca32fcc8155afc5f8829ae75"
+        },
+        {
+          "judge": 3995,
+          "row": 300300995,
+          "sha256": "7fb50b74b529ce9bee10f2333ee45d7e950d722190813151ecc99f620c38fe95"
+        }
+      ],
+      "nativeJudges": [
+        700
+      ]
+    },
+    {
+      "id": 408,
+      "name": "辉光箭雨",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "1142d6bfc390a5d5f2e3fd9edc20c4e67e4a72d3996741330ddec3e5bd366fae"
+    },
+    {
+      "id": 409,
+      "name": "箭步架势 (回旋斩)",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "8e3e99f0c8ba3133bc4e915743c5f132d6e9d3e01306189ea8df51ab71307a46"
+    },
+    {
+      "id": 655,
+      "name": "",
+      "enabled": false,
+      "reason": "无有效战技名称",
+      "evidenceSha256": "f9cbc6d87a4331e554aee95d79ffe1f7e7d7e11dcbcc4a7bf452c28c12edf1bb"
+    },
+    {
+      "id": 1201,
+      "name": "风暴管束者",
+      "enabled": false,
+      "reason": "对应动作分类没有动画",
+      "evidenceSha256": "ca794d4935c26dd770cc610e894bf3c28fcb53cefef47e77acabd4ebe684e076"
+    },
+    {
+      "id": 2000,
+      "name": "落叶旋风脚",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "726cee8a016e2dac0498d8f0798e774124481c972174b4a62f65d5f0cc1bd13d"
+    },
+    {
+      "id": 2001,
+      "name": "熔炉百相之羽",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "a26541c7627f45992c058014433204529377b40a8d78f30a255cdb594daa1c2a"
+    },
+    {
+      "id": 2002,
+      "name": "熔炉百相之羽",
+      "enabled": false,
+      "reason": "熔炉羽之长柄变体，先保留2001单一入口",
+      "evidenceSha256": "2a770580a45be58623bd7a6186d8746fd219dd881da1d99c249c935c872271f8"
+    },
+    {
+      "id": 3000,
+      "name": "盲击",
+      "enabled": false,
+      "reason": "与现有盲击重复，依赖武器专用3000段行为",
+      "evidenceSha256": "532ae61e83de35907a4dfe73ed23c59bd81082e3627183357a6f34f4d156bf59"
+    },
+    {
+      "id": 4000,
+      "name": "重力旋刺",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "634dda36391139031336931b50181f944a01ba5ec21b956a8c42a8a0bb23f9f9"
+    },
+    {
+      "id": 4010,
+      "name": "发劲",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "ebd832af355b51e65b56da58ebe575b6c899bef1733920862f3fc0c7e4ea3601"
+    },
+    {
+      "id": 4020,
+      "name": "贯穿投掷",
+      "enabled": false,
+      "reason": "投掷武器模型及发射位置依赖",
+      "evidenceSha256": "42a24bb32c2f8b4655ea6ce64244526def4f2a18702eb5df15df5227c028bc0b"
+    },
+    {
+      "id": 4040,
+      "name": "四面火花香",
+      "enabled": false,
+      "reason": "调香瓶属性行为分支，样例武器错误",
+      "evidenceSha256": "46a6f20e7dd8a30a74d0011da23dd857a2bd6887381ef34286218da1cc23785c"
+    },
+    {
+      "id": 4050,
+      "name": "串联火花香",
+      "enabled": false,
+      "reason": "调香瓶属性行为分支，样例武器错误",
+      "evidenceSha256": "e12b3aa228e33065fe8c27d77d9cd83ad6b021861cdf77fb84c512c684cd3017"
+    },
+    {
+      "id": 4060,
+      "name": "野兽突袭",
+      "enabled": false,
+      "reason": "兽爪成对动作／样例武器不匹配，待专项适配",
+      "evidenceSha256": "250aa9f2739d6e6fb32d26cea024484412db2e8d72679737411166e6a9bbba77"
+    },
+    {
+      "id": 4070,
+      "name": "野兽爪击",
+      "enabled": false,
+      "reason": "兽爪专用成对攻击动作",
+      "evidenceSha256": "ff5d1c571f0cb048dafa6ea2740bfc557df51d166517b8aee577ecbb598e8c92"
+    },
+    {
+      "id": 4080,
+      "name": "红熊猎法",
+      "enabled": false,
+      "reason": "兽爪专用成对攻击动作",
+      "evidenceSha256": "9e89e0b1477ef2fa834029a596a9f2e7bfe2b7b40cab8f0182317aa965088f5b"
+    },
+    {
+      "id": 4090,
+      "name": "死角一击",
+      "enabled": false,
+      "reason": "反手剑双刃动作，待跨模型适配",
+      "evidenceSha256": "61d13fbcdb5753e2f54953b041ae97f28a2c403617af32694dc8740699edee2e"
+    },
+    {
+      "id": 4100,
+      "name": "迅斩",
+      "enabled": false,
+      "reason": "动作引用缺少公共攻击记录，需专用行为",
+      "evidenceSha256": "91aba70f0302e03953493e82c4812982461bfc7fdf159894be18805feafa3f90"
+    },
+    {
+      "id": 4110,
+      "name": "大上段",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "09c9541cb6dde3d3819c28c9ab11216772ebb4aa6f7689de489e156416624a7a"
+    },
+    {
+      "id": 4120,
+      "name": "单翼架势",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "19a2e3623b446f6af27a20cf1170307b07b6cef8f71f4f9785f23381c6b83fa3"
+    },
+    {
+      "id": 4130,
+      "name": "瞬雷",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "d62812c81c7c755f6d4229d97fac42c8575d75e754a5948078a879e9116c6bfc"
+    },
+    {
+      "id": 4140,
+      "name": "火焰穿刺",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "581fe51ec2c3b7af2e989af13c30da002da3984a7c6c41d1754ec19eedad528e"
+    },
+    {
+      "id": 4150,
+      "name": "勇猛狮子斩",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "9ad261ecda3c51ebfe4c87d74ed36bb2633c1f913cb730cb64c6f9e510368ed9"
+    },
+    {
+      "id": 4160,
+      "name": "神兽冻霜踏地",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "d1156e0c824609ccca5b3956ac17f8ed7aee7b173bb65ffe427a1c96193e6df8"
+    },
+    {
+      "id": 4170,
+      "name": "火焰枪",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "8a857e83083af192bb1a52ab699d2d45595794124cc5b76809f4870a0a8e15b9"
+    },
+    {
+      "id": 4180,
+      "name": "尊矣卡利亚",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "b3c503cc8971e8220e633b1059a427a7fb4a516b9316253e67a49768b8533799"
+    },
+    {
+      "id": 4190,
+      "name": "悲恸惨叫",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "15a59b6c847b5c28c7c20030a20c446117b0515ac4e66d99a665d95cbd19dafb"
+    },
+    {
+      "id": 4210,
+      "name": "未命名内部战技",
+      "enabled": false,
+      "reason": "无可用战技名，且依赖武器私有攻击 890/895",
+      "evidenceSha256": "65180e00777cdfc87b8c0bab759f6648192e355ab9f645eb1e318de75a0a6261"
+    },
+    {
+      "id": 5000,
+      "name": "伤龙斩",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "f119174213c953974f49e77f3fbce91440686b275484066df315d22f8dd740ca"
+    },
+    {
+      "id": 5010,
+      "name": "贯刺针",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "69db52935b2dc0941992c54777de27e94fd2758b9050ed633af8c041d8abd766"
+    },
+    {
+      "id": 5020,
+      "name": "光明",
+      "enabled": false,
+      "reason": "特殊武器上的光源发射挂点，待验证",
+      "evidenceSha256": "61d9731580d41adf6c94f3224689eb991c88570a853401ec0a3841bbec60d6aa"
+    },
+    {
+      "id": 5030,
+      "name": "黑暗",
+      "enabled": false,
+      "reason": "特殊武器上的黑暗发射挂点，待验证",
+      "evidenceSha256": "229ec48e8f19fc7d0f6f7c1cf5dcb58860189fca4f8747d41de86dbc5cb881ed"
+    },
+    {
+      "id": 5040,
+      "name": "翁吉的连星",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "95cea7c95763573c1240c6a308ef4373e4f2acc09105460ed7a5ce9d60f4f1f2"
+    },
+    {
+      "id": 5050,
+      "name": "双刺毒花",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "f3d570fcc4e76a53d1cfc7e6cec8979fe84b1fa514bff3f12d61cf1dbb1bfdb5"
+    },
+    {
+      "id": 5080,
+      "name": "回旋斩首",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "41113bd2078d43eb6c6508ee07b08485e0d1712f7594189b0ad913bfdfc48f52"
+    },
+    {
+      "id": 5090,
+      "name": "无尽之舞",
+      "enabled": false,
+      "reason": "双武器连段动作，待跨模型适配",
+      "evidenceSha256": "5aa913f2d2d6acf9196b4ca576796ad0de90b925b398a6ac815bfe7800cadc92"
+    },
+    {
+      "id": 5100,
+      "name": "复仇者之刃",
+      "enabled": false,
+      "reason": "双武器连段动作，待跨模型适配",
+      "evidenceSha256": "2ace7209162cd384ef496d03e68181a7ef4df9ea6ad19efdb5a9885444245c9b"
+    },
+    {
+      "id": 5120,
+      "name": "王朝镰技",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "a3ad1b2857deb7cc4ebb178472d282c18fd326338b146290d4d931427bf6ff3e"
+    },
+    {
+      "id": 5130,
+      "name": "瞬雷之双斧",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "85df4641ea94b7ccbd1b0da920ecc1aa97764ed3af755398e56674c9af097858"
+    },
+    {
+      "id": 5140,
+      "name": "瞬雷之长柄斧",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "ae9d679b3b6479047385691fbe69c8e1b08ebcf6452f33498ffb26a3d8d8da48"
+    },
+    {
+      "id": 5150,
+      "name": "约定之王",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "c8f18fb19d1167e0134ac6e6b77ba06d38d52dab51c10c4d0eeb83df96f24717"
+    },
+    {
+      "id": 5160,
+      "name": "影轮草头槌",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "6c30f845f6bc90ac336db72e6a8dd24ebed3ed552a393f29b797d239d1964ec9"
+    },
+    {
+      "id": 5170,
+      "name": "月与火的架势",
+      "enabled": false,
+      "reason": "成对轻大剑架势和双手行为，待专项适配",
+      "evidenceSha256": "43543578fe68c0e4139ad0a42782af27ad71e8fca28e61b782f0cc0555622967"
+    },
+    {
+      "id": 5180,
+      "name": "泥盆亚的游涡",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "32620cc87f4070f35c98f49f866a444c228ce47eaa9a85e1cf320a075ed28d51"
+    },
+    {
+      "id": 5190,
+      "name": "梅瑟莫的强攻",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "d641960155fc4a16226372d14f1dc5d5f9db5f13431f726ece2a797f7b34ec33"
+    },
+    {
+      "id": 5210,
+      "name": "永眠毒针",
+      "enabled": true,
+      "reason": "已核对独立入口和公共攻击 7410/7411/7415/7416",
+      "evidenceSha256": "c18dc00bcc0fce059efa7fc76117b16d118d5b4d251f453a0e5b002d05fe6e3d"
+    },
+    {
+      "id": 5220,
+      "name": "黄金穿刺",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "fb9a5a1e29086146694ba411a1f001e64fc08b94213b8640b8f1ecda54b58f7e"
+    },
+    {
+      "id": 5240,
+      "name": "白光突袭",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "340edd51f8e9cc446ba8e5e14f27872dd410a9d0c943c7066110a191e1958c19"
+    },
+    {
+      "id": 5250,
+      "name": "怨魂斩",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "f85ba5896ce4bcc144b2e1ab7ba90160494aae6b9964fea356de22c7d61d3e00"
+    },
+    {
+      "id": 5260,
+      "name": "夜暗斩击",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "6320e7af0bd955ee0ddb413c891c78926e9610de0e72422db9c74e0402be531e"
+    },
+    {
+      "id": 5270,
+      "name": "艾珀莉亚漩涡",
+      "enabled": false,
+      "reason": "依赖艾珀莉亚充能状态",
+      "evidenceSha256": "8016cfa152eeb9105f625bd378177469d3f22694787cfc3d79ad9075d58110d4"
+    },
+    {
+      "id": 5280,
+      "name": "锻造术之矛",
+      "enabled": false,
+      "reason": "投掷武器模型／回收依赖",
+      "evidenceSha256": "1cfcd8b9a5ea3962bb2ad19aeb9afbbc35d27c2845d95c31c965ba4f54527adb"
+    },
+    {
+      "id": 5290,
+      "name": "怨魂斩",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "21837e5fb30364df161c7bbf5a5de5aed9cd0f0e3d1428c81bf590d61e9e3e0b"
+    },
+    {
+      "id": 5300,
+      "name": "罗米娜的解厄",
+      "enabled": false,
+      "reason": "特殊长柄武器动作，待跨模型验证",
+      "evidenceSha256": "886f46cd2c612f4b49cdd40d48b38bcfcbb72e0855320214996babdfc0862c8b"
+    },
+    {
+      "id": 5330,
+      "name": "弱小王的癫火",
+      "enabled": false,
+      "reason": "专用火把行为和持续攻击发射挂点",
+      "evidenceSha256": "d79c80bc23ef376d74e1305df44c5c26e1c9ac19ae8b579937b3795e89a06182"
+    },
+    {
+      "id": 5340,
+      "name": "连射弩的射击",
+      "enabled": false,
+      "reason": "弩和弹药机构专用，不纳入普通池",
+      "evidenceSha256": "636731469b65d9d276d51519702c9877356cd27d04b186dc16cf7678ce87804a"
+    },
+    {
+      "id": 5350,
+      "name": "灾厄之舞",
+      "enabled": false,
+      "reason": "反手剑双刃连段，待跨模型适配",
+      "evidenceSha256": "3e2888ea2f2d46d4b255992dad89ba216206e94cc0c79de1bdf361546606c0d0"
+    },
+    {
+      "id": 5360,
+      "name": "扇形射击",
+      "enabled": false,
+      "reason": "弓专用行为，当前没有公共攻击记录",
+      "evidenceSha256": "8eccf147f0a9f6e5329470633c71f1fd1f09e3c70db40788b5fc89e436c07bb2"
+    },
+    {
+      "id": 5370,
+      "name": "飞盘投掷",
+      "enabled": false,
+      "reason": "盾牌模型投掷／回收依赖",
+      "evidenceSha256": "b90492ee4190a6d91929fa7f0b0b13e47d5746be26bcdbb9bb8ef2f2d21d2057"
+    },
+    {
+      "id": 5380,
+      "name": "花之龙雷",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "7a5839b211ab4e8ff05e314cf3c9277bb50a623fb0bdd89647670711927499ec"
+    },
+    {
+      "id": 5390,
+      "name": "叩头之怒",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "3af011ec08971633dad3d0732b4db269eb3c27e2cbbffe5e0a519b91a5509b07"
+    },
+    {
+      "id": 5420,
+      "name": "痛击",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "20736bb8ff05d40b7a2c98dd865ae3f9fafc607570b45e44a98a84b24adeac32"
+    },
+    {
+      "id": 5430,
+      "name": "孤月斩",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "2d6267a7b2cbb4663b42790777840aa1eeea8485c4ad985cc1017a643afd6952"
+    },
+    {
+      "id": 5440,
+      "name": "黑夜奉还",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "b0beeae6a12f2fc0920fbb065d7db9c4e59e3d572181c04df8c5054422da7789"
+    },
+    {
+      "id": 5450,
+      "name": "割草",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "ea3e1db5d89e9735c0283bbbb1c342c41a9df11194c78e106e7e44e7c59105d1"
+    },
+    {
+      "id": 5470,
+      "name": "约里的拷问",
+      "enabled": true,
+      "reason": "已核对战技356原生续段专注值检查和公共攻击 6850/6851/6852",
+      "evidenceSha256": "095451d64a126bdc726733b264abf4e143ccd9b42a6d305821264f8419941ac3"
+    },
+    {
+      "id": 5490,
+      "name": "剧毒喷雾",
+      "enabled": false,
+      "reason": "调香瓶专用攻击和模型",
+      "evidenceSha256": "94f0d92f8a150df882676d2b96e8493a907b02f4714be76db119f7de2fcd5cab"
+    },
+    {
+      "id": 5500,
+      "name": "蛇啊，燃烧吧",
+      "enabled": false,
+      "reason": "盾牌专用蛇形模型攻击",
+      "evidenceSha256": "30e044ac7e8420c6ce6cc8e21e6d2204671685bd5a0e5f4e0e74bbd1720f0ba6"
+    },
+    {
+      "id": 5510,
+      "name": "多重投掷之爪",
+      "enabled": false,
+      "reason": "爪模型投掷和武器专用行为",
+      "evidenceSha256": "6d97262c4bbdcaf2a3b9590f4ad8148a7eb650b4ff52efba3e938c89659692f5"
+    },
+    {
+      "id": 5530,
+      "name": "角降临",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "48bbf03b71d49ff7e62c25b022372e25ec1fa541e5b46d39811cca401c91f0ce"
+    },
+    {
+      "id": 5540,
+      "name": "角降临之风暴",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "bf2bb762909a85227a1af550c9a34cc8a1f0962420c5a3b77067072e4f02a37e"
+    },
+    {
+      "id": 5560,
+      "name": "血怪授血",
+      "enabled": false,
+      "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
+      "evidenceSha256": "6359a94876539bde3999a03c485eacf16adca53d3ff1c813c3a77188f0ca1bbe"
+    },
+    {
+      "id": 5580,
+      "name": "光速斩",
+      "enabled": true,
+      "reason": "已核对独立入口及公共攻击记录",
+      "evidenceSha256": "b81f6a0fcab0b6667b2fa1d91ec29ae93b1694d8d34f81943747cdb83da75aa9"
+    },
+    {
+      "id": 5600,
+      "name": "怨魂射击",
+      "enabled": true,
+      "reason": "",
+      "evidenceSha256": "0e3dd825e9d4328a40aa4ed646847762b8cc401b3d83cf072908398f14a40003",
+      "behaviorOverrides": [
+        {
+          "judge": 900,
+          "row": 105000900,
+          "sha256": "a40e749dbf704a2efce9a4c37fb14dcdc3a55a80dc79daa11a2a40245fedbae6"
+        },
+        {
+          "judge": 901,
+          "row": 105000901,
+          "sha256": "a0a59c5bf009fb242f9aaf1273c30ed9f9eb54ea19cceac9ba1387f35678689a"
+        }
+      ],
+      "pool": "bow",
+      "ammunition": true
+    },
+    {
+      "id": 8000,
+      "name": "盾牌攻击",
+      "enabled": false,
+      "reason": "原生右手及双手禁用的内部盾牌攻击",
+      "evidenceSha256": "205f1ffcb3521ef7ce9effce7fbade5ecfadea662d82846d377aeed755ec921c"
+    }
+  ],
+  "callbacks": {
+    "SwordArtsBothGuardCounter_onUpdate": {
+      "mode": "used",
+      "sourceSha256": "c56abd2e6f533dd92ca52691046f8da6fd56e7102b4d5d9b63b02bbc6928fc10"
+    },
+    "SwordArtsHalfBothLoopEnd_Upper_onUpdate": {
+      "mode": "busy",
+      "sourceSha256": "e3a67678b964f039b72d3c4bb0077fb746a32e8f1beaca8222a25c90dae782ea"
+    },
+    "SwordArtsHalfBothLoopLoop_Upper_onUpdate": {
+      "mode": "used",
+      "sourceSha256": "1125ddef9ae653400efe2d273d0ef87b372dfaae8e8519c96fb2b09dc942ba76"
+    },
+    "SwordArtsHalfOneShotShieldBoth_Upper_onUpdate": {
+      "mode": "used",
+      "sourceSha256": "d5ba7cdd1d2c5ab304c68c2a3c114a5d9302b07f11d6b44620e90f00f034cbe2"
+    },
+    "SwordArtsLeftGuardCounter_onUpdate": {
+      "mode": "used",
+      "sourceSha256": "4c89bdb9bc51117024d32a60596b4edef07e4fa8bb702367715f6265fcff7fe0"
+    },
+    "SwordArtsOneShotComboEnd_MesmerSowrdArts_onUpdate": {
+      "mode": "used",
+      "sourceSha256": "d33d613936b1edd7421eabbfac4181adb09abb291f7531fee9a43ef275f96a3b"
+    },
+    "SwordArtsRolling_Sub_onUpdate": {
+      "mode": "busy",
+      "sourceSha256": "5fe6a1e9312b03fb8e99dbf804f7a7cf8ab57920ed3062463d3059cec23ded10"
+    }
+  }
+}

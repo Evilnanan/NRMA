@@ -1,0 +1,99 @@
+import copy
+import json
+import struct
+import unittest
+from build_mmv_arts import ROOT, PROFILE, generate, table, numbers, review_event, evidence
+
+
+@unittest.skipUnless((ROOT/'work/compat/mmv/arts-parameters.json').exists(),'requires target export')
+class ArtsTargetTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.raw=json.loads((ROOT/'work/compat/mmv/arts-parameters.json').read_text(encoding='utf8'))
+        cls.profile=json.loads(PROFILE.read_text(encoding='utf8'))
+        cls.native=(ROOT/'src/arts_data.rs').read_text(encoding='utf8')
+        cls.output,cls.report=generate(cls.raw,cls.profile,cls.native)
+
+    def test_all_weapon_defaults_bows_and_elemental_variants(self):
+        weapons=table(self.raw,'EquipParamWeapon')
+        defaults=numbers(self.output,'DEFAULTS')
+        self.assertEqual(dict(zip(defaults[::2],defaults[1::2])),{i:w['swordArtsParamId'] for i,w in weapons.items()})
+        self.assertEqual(self.report['addedWeapons'],346)
+        self.assertEqual(self.report['addedBowWeapons'],[7230000,40500000,41071000,41080000,41081000])
+        for name,field in [('FIRE_WEAPONS','attackBaseFire'),('MAGIC_WEAPONS','attackBaseMagic'),('HOLY_WEAPONS','attackBaseDark')]:
+            self.assertEqual(numbers(self.output,name),sorted(i for i,w in weapons.items() if w[field]>0))
+
+    def test_only_reviewed_portable_skills_and_native_bow_split(self):
+        self.assertEqual(len(self.report['addedSkills']),41)
+        self.assertEqual(self.report['ordinaryPool'],215)
+        self.assertTrue({159,5210,5470,5600} <= set(self.report['addedSkills']))
+        self.assertTrue({4210,5600}.isdisjoint(numbers(self.output,'POOL')))
+        self.assertEqual(numbers(self.output,'BOW_POOL'),numbers(self.native,'BOW_POOL')+[5600])
+        self.assertEqual(numbers(self.output,'MMV_BOW_SKILLS'),[5600])
+        self.assertEqual(numbers(self.output,'MMV_AMMO_JUDGES'),[900,901])
+        self.assertTrue(set(numbers(self.native,'POOL'))<=set(numbers(self.output,'POOL')))
+        self.assertTrue({1007,146,1201,4040,4050,5170,5270,5340,5360,8000}.isdisjoint(numbers(self.output,'POOL')))
+
+    def test_explicit_weapon_and_ammunition_rows_are_guarded(self):
+        mapping=numbers(self.output,'MMV_BEHAVIORS')
+        rows=set(zip(mapping[::3],mapping[1::3],mapping[2::3]))
+        self.assertTrue({(159,3994,300300994),(159,3995,300300995),(5600,900,105000900),(5600,901,105000901)}<=rows)
+        self.assertNotIn((159,700,100300700),rows)  # no-FP fallback stays the held weapon's attack
+        raw=copy.deepcopy(self.raw)
+        next(r for r in raw['tables']['BehaviorParam_PC']if r['ID']==105000900)['fields']['refId']=-1
+        with self.assertRaisesRegex(ValueError,'explicit behavior changed: 5600'):generate(raw,self.profile,self.native)
+        profile=copy.deepcopy(self.profile)
+        next(r for r in profile['skills']if r['id']==159)['behaviorOverrides'].pop()
+        with self.assertRaisesRegex(ValueError,'Incomplete explicit behavior review'):generate(self.raw,profile,self.native)
+
+    def test_changed_attack_or_animation_cannot_silently_enable(self):
+        raw=copy.deepcopy(self.raw)
+        raw['animations']['626'][0]['ID']+=1
+        with self.assertRaisesRegex(ValueError,'changed: 126'):generate(raw,self.profile,self.native)
+        raw=copy.deepcopy(self.raw)
+        next(r for r in raw['tables']['BehaviorParam_PC'] if r['ID']==700000569)['fields']['refId']=-1
+        with self.assertRaisesRegex(ValueError,'changed: 126'):generate(raw,self.profile,self.native)
+
+    def test_private_guard_tag_migration_preserves_strict_review(self):
+        raw=copy.deepcopy(self.raw)
+        expected=evidence(raw,126)
+        event=next(e for a in raw['animations']['626'] for e in a['events'] if review_event(e)!=e)
+        before=copy.deepcopy(event)
+        legacy=review_event(event)
+        self.assertEqual(event,before)  # review must never rewrite the staged export
+        event.update(legacy)
+        self.assertEqual(evidence(raw,126),expected)
+        event['EndTime']+=0.01
+        self.assertNotEqual(evidence(raw,126),expected)
+        event.update(before)
+        data=bytearray.fromhex(event['data'])
+        struct.pack_into('<i',data,8,struct.unpack_from('<i',data,8)[0]+1)
+        event['data']=data.hex().upper()
+        self.assertEqual(review_event(event),event)  # wrong condition/tag pairing stays rejected
+        self.assertNotEqual(evidence(raw,126),expected)
+
+    def test_new_skill_requires_review_and_conflicting_weapon_rows_fail(self):
+        raw=copy.deepcopy(self.raw);row=copy.deepcopy(raw['tables']['SwordArtsParam'][0]);row['ID']=777777
+        raw['tables']['SwordArtsParam'].append(row)
+        with self.assertRaisesRegex(ValueError,'require review'):generate(raw,self.profile,self.native)
+        raw=copy.deepcopy(self.raw);row=copy.deepcopy(raw['tables']['EquipParamWeapon'][0]);row['fields']['swordArtsParamId']+=1
+        raw['tables']['EquipParamWeapon'].append(row)
+        with self.assertRaisesRegex(ValueError,'Ambiguous'):generate(raw,self.profile,self.native)
+
+    def test_mmv_notification_owner_hand_and_busy_boundaries(self):
+        from mmv_hks_stage import runtime,arts_prefix
+        lua=runtime();seen=[];lua.globals().TRUE=1;lua.globals().HAND_LEFT=0
+        lua.globals().act=lambda *args:seen.append(args)
+        for mode in ['used','busy']:
+            f=lua.eval('function()\n'+arts_prefix(mode)+'return 123 end')
+            for owned in [0,1]:
+                lua.globals().env=lambda *args:owned if args==(1116,6999800) else 0
+                for hand in [0,1]:
+                    lua.globals().c_SwordArtsHand=hand;seen.clear()
+                    self.assertEqual(f(),123)
+                    self.assertEqual(seen,[(2002,6999801 if mode=='busy' else 6999802+hand)] if owned else [])
+        self.assertEqual(self.profile['callbacks']['SwordArtsRolling_Sub_onUpdate']['mode'],'busy')
+        self.assertEqual(self.profile['callbacks']['SwordArtsHalfBothLoopEnd_Upper_onUpdate']['mode'],'busy')
+
+
+if __name__=='__main__':unittest.main()

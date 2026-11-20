@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "scope": "mod/**, dll/**, root *.me3 and referenced native DLL/config files; excluding *.log, logs/** and dll/target/release/0987.txt",
+  "fileCount": 4683,
+  "totalBytes": 7290254562,
+  "sha256": "7279ca8765ef81565ba0023b47d44e75558786bf381f7301ced8c594a1d79356",
+  "criticalFiles": {
+    "Daybreak Launcher - 2.1.9 Beta2-Hotfix1.me3": {
+      "bytes": 695,
+      "sha256": "486f676040ab89bea83b6bd72062a8431ad998a785a61983cad0f1ed053440f3"
+    },
+    "dll/ServerRedirector/cl_server_redirector.dll": {
+      "bytes": 881664,
+      "sha256": "9413c4e6c4cc6d958e4b3dd4756548168749622ad2e0d5a4bd9ad3295ff2350c"
+    },
+    "dll/custom_drop_fxrs.dll": {
+      "bytes": 485376,
+      "sha256": "36e725c92a005c965c658e1013a6ef4134ae8dc81cfed15b021824485510f791"
+    },
+    "dll/target/release/nrallinone.dll": {
+      "bytes": 168960,
+      "sha256": "3436a9c4354893c8d5d42a56d39e128e40ebdbd63d8643169de166063eba39d7"
+    },
+    "dll/unlock_wwise_states_nr.dll": {
+      "bytes": 621056,
+      "sha256": "f9dad9cba8a02d7cb6192d8a79ad3f571aa6bfb20d3737df88c8e8502a21c084"
+    },
+    "mod/action/script/c0000.hks": {
+      "bytes": 1194588,
+      "sha256": "96339bb15f57559cd42a940d616fcc2a18a10f50845cfc22b46b356ab66c3b29"
+    },
+    "mod/regulation.bin": {
+      "bytes": 2542672,
+      "sha256": "f7c39ad0cad7653530df4c119b96c9b09abc0d38dccf32dd649275a160bf0342"
+    },
+    "tools/ChanceSetter.dll": {
+      "bytes": 3129911,
+      "sha256": "cf33fa2ece515b2635308b6524a1af7cce3bda2af94765ac8b5f6c53ac5775d4"
+    }
+  },
+  "compatibilityVerified": false,
+  "reviewedPack": "Daybreak 2.1.9 Beta2-Hotfix1 + 2.1.9beta2H1 Chinese translation"
+}
