@@ -32,6 +32,7 @@ def export_target(mmv=False):
     expected, automatic = generate(raw, mmv)
     assert expected == compiled, 'Automatic runtime snapshot is stale'
     quick_drop = set(automatic['quickDrop'])
+    terrain_probes = set(automatic['terrainProbes'])
     tables = {}
     for table in ('Magic', 'Bullet'):
         rows = raw['tables'][table]
@@ -129,6 +130,8 @@ def export_target(mmv=False):
                 notes.append('超距时保留爆炸/停留/引爆前摇；后续效果不再硬裁剪；不是伪造墙体碰撞')
             if seen & ground:
                 row['计距方式'] = '已登记落雷定位组件按水平位移，其余三维位移'
+            if seen & terrain_probes:
+                row['计距方式'] = '定位阶段保留各自限距；向下探地只计水平位移'
             if seen & quick_drop:
                 row.update(当前处理='平滑抛射下坠', 计距上限米=f'约{SMOOTH_ARC_REACH:g}（平地默认瞄准目标，非上限）',
                            计距方式='特殊载体不设6米截断；按出手速度和法术抛射角校准下落曲线',
@@ -172,7 +175,7 @@ def export_target(mmv=False):
             row['估算口径'] = '无可比较的自由飞行距离；留空不代表0米'
         else:
             before, after, method, estimates = compare(mid, seen, moving, bullets,
-                continuations, ground, crystal, limit, crystal_limit, tracked, quick_drop)
+                continuations, ground, crystal, limit, crystal_limit, tracked, quick_drop, terrain_probes)
             reduction = before - after
             row.update(dict(zip(comparison_fields, [f'{before:.1f}', f'{after:.1f}',
                 f'{reduction:.1f}', f'{100 * reduction / before:.1f}' if before else '0', method])))

@@ -64,6 +64,8 @@ def audit(mmv=False):
                     treatment = '静止/附着阶段；不因前行距离销毁'
                 elif field == 'intervalCreateBulletId':
                     treatment = '沿途周期派生；父体仍按自身限制'
+                elif bid in report['terrainProbes']:
+                    treatment = '探地只计水平位移；保留原生地形碰撞和后续派生'
                 elif p['shootAngleXZ'] <= -60 or max(abs(p['gravityInRange']), abs(p['gravityOutRange'])) >= 100:
                     treatment = '实际探地/下落；不伪造碰撞（另看已释放上游）'
                 elif q['launchConditionType'] not in (0, 3, 5):

@@ -90,6 +90,7 @@ def generate(raw, mmv=False):
         r=attacks.get(a,{})
         return any(r.get(k,0)>0 for k in ['atkPhys','atkMag','atkFire','atkThun','atkDark','dmgLevel'])
     roots={}; attack_map={}; bonuses={}; report=[]; drops=set(); ends={}
+    terrain_probes = set()
     for mid in sorted(eligible):
         r=magic[mid]
         start={r[f'refId{i}'] for i in range(1,11) if r[f'refCategory{i}']==1 and r[f'refId{i}'] in bullets}
@@ -120,6 +121,14 @@ def generate(raw, mmv=False):
             v=bullets[b];child=v['HitBulletID'];c=bullets.get(child)
             if mid in (4210,6010) or b in crystal or b in DROP_ROOTS.get(mid,[]) or not c or child<=0 or (b,child) in continuations:
                 continue
+            # Invisible, non-damaging downward probes use real map collision to place
+            # a stationary child. Their vertical search depth is not forward reach.
+            if (v['shootAngleXZ'] <= -80 and v['initVellocity'] >= 100
+                    and v['initVellocity'] * v['life'] > 6 and v['atkId_Bullet'] in (0, 1)
+                    and not useful(v['atkId_Bullet']) and v['sfxId_Bullet'] < 0
+                    and v['isPenetrateChr'] and not v['isPenetrateMap']
+                    and not motion(child) and v['intervalCreateBulletId'] <= 0):
+                terrain_probes.add(b)
             if max(abs(v['gravityInRange']),abs(v['gravityOutRange']))>=100 or v['shootAngleXZ']<=-60:
                 continue
             if not motion(child) and c['FollowType']==0 and c['launchConditionType'] in (0,3,5):
@@ -150,7 +159,7 @@ def generate(raw, mmv=False):
         # comparable tracked flight its automatic percentage is zero.
         value=0.;method='无可比较飞行距离，自动0%'
         if moving and mid!=4210:
-            value,_,method,_=compare(mid,seen,moving,bullets,continuations,ground,crystal,6.,3.,start)
+            value,_,method,_=compare(mid,seen,moving,bullets,continuations,ground,crystal,6.,3.,start,terrain_probes=terrain_probes)
         if not math.isfinite(value) or value<0:raise ValueError(f'Invalid automatic distance {mid}: {value}')
         if mid==2007810:
             assert start=={210781000,210781050}
@@ -190,6 +199,7 @@ def generate(raw, mmv=False):
     lines += ['pub const DROP_ARCS: &[(i32,f32)] = &[']
     lines += [f' ({bid},{smooth_arc_gravity(bullets[bid]):.6f}f32),' for bid in sorted(drops)]
     lines += ['];']
+    lines += ['pub const TERRAIN_PROBES: &[i32] = &[' + ','.join(map(str, sorted(terrain_probes))) + '];']
     lines += ['pub const FLIGHT_CONTINUATIONS: &[(i32,i32)] = &[']
     lines += [f' ({parent},{child}),' for parent,child in sorted(continuations)]
     lines += ['];']
@@ -197,7 +207,7 @@ def generate(raw, mmv=False):
     lines += [f' ({bid},{child}),' for bid,child in sorted(ends.items())]
     lines += ['];']
     return '\n'.join(lines)+'\n',dict(regulationSha256=raw['regulationSha256'],spells=report,
-                                     quickDrop=sorted(drops),manualBalanceInputs=False,
+                                     quickDrop=sorted(drops),terrainProbes=sorted(terrain_probes),manualBalanceInputs=False,
                                      unreferencedAmbiguousAttacks=sorted(ambiguous_attacks))
 
 

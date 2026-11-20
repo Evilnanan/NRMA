@@ -367,7 +367,27 @@ fn native_sword_projectile_fixed_launch_retirement_and_independent_children(){un
   cleanup(manager.as_mut_ptr()as usize,ip);
   assert_eq!(VISUAL_ERASES.load(Ordering::Relaxed),1);assert_eq!(visual[1],1);
  }
- for bullet in [10691010,10691060,10691071,10692009,10692100,10692109,10693001]{
+ // An in-range native hit keeps its descendants tracked. At 60 Hz the stone
+ // probes descend ~16.6 m in one step; map contact must still be able to emit.
+ let burst:unsafe extern "system" fn(usize,i32)=std::mem::transmute(base+MODE_RVA);
+ for &bullet in crate::sword_map::TERRAIN_PROBES{
+  int(pp+4,10402100);int(pp+0x24,4021);
+  reset_fixture([17.,-999.,0.,0.]);bind_root();
+  int(pp+4,bullet);
+  {let _init=initialize_scope(gp,posep).unwrap();initialize_native(ip,pp,0,posep,7,9);}
+  let count=CHILDREN.load(Ordering::Relaxed);
+  assert_eq!(update(ip,1./60.),1,"probe {bullet} retired before contact");
+  let contact=point(ip);
+  assert!(contact[1]<origin[1]-6. && contact[0]-origin[0]<1.);
+  assert_eq!(CHILDREN.load(Ordering::Relaxed),count);
+  // Terrain collision itself is supplied by the fixture.
+  int(ip+0x600,123);burst(ip,3);
+  assert_eq!(*EMISSION.lock().unwrap(),Some((123,contact)));
+  assert_eq!(CHILDREN.load(Ordering::Relaxed),count+1);
+  cleanup(manager.as_mut_ptr()as usize,ip);
+ }
+ for bullet in [10691010,10691060,10691071,10692009,10692100,10692109,10693001].into_iter()
+     .chain(crate::sword_map::TERRAIN_PROBES.iter().copied()){
   int(pp+4,10402100);int(pp+0x24,4021);reset_fixture([0.,-100.,0.,0.]);bind_root();
   int(pp+4,bullet);
   {let _init=initialize_scope(gp,posep).unwrap();initialize_native(ip,pp,0,posep,7,9);}

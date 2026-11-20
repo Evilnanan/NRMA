@@ -177,7 +177,8 @@ pub unsafe extern "system" fn bind(ins:usize,payload:usize,target:usize,transfor
  let p=point(ins);if !finite(p){return;}
  let row=param(ins,BASE.load(Ordering::Acquire));
  let bullet=read_i32(payload+4);
- flight.horizontal=ground_projectile(bullet)||quick_drop(bullet);
+ flight.horizontal=ground_projectile(bullet)||quick_drop(bullet)
+     ||crate::sword_map::TERRAIN_PROBES.binary_search(&bullet).is_ok();
  if flight.origin.is_none()&&free_flight(row,bullet)&&velocity(ptr::read_unaligned((ins+0x30)as*const Point)){flight.origin=Some(p);}
  let arc=if free_flight(row,bullet){arc_for(bullet,ptr::read_unaligned((ins+0x30)as*const Point))}else{None};
  if let Ok(mut state)=STATE.lock(){state.instances.insert(ins,Instance{handle:ptr::read_unaligned((ins+8)as*const u64),bullet,flight,previous:p,arc,ending:false});}

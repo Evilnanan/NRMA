@@ -32,6 +32,27 @@ class AutomaticSword(unittest.TestCase):
             blast['maxVellocity']=10.
             with self.assertRaises(AssertionError):generate(raw)
 
+    def test_stone_ground_probes_exclude_locators_rocks_and_visible_falling_attacks(self):
+        magic = {'ezStateBehaviorType': 0}
+        for i in range(1, 11):
+            magic[f'refCategory{i}'] = 1
+            magic[f'refId{i}'] = (210470000, 210470050, 210432001)[i-1] if i <= 3 else -1
+        def stage(bid, speed, child, **changes):
+            fields = bullet(initVellocity=speed, HitBulletID=child, atkId_Bullet=1, launchConditionType=0,
+                            isPenetrateMap=0, isPenetrateChr=1, sfxId_Bullet=-1)
+            fields.update(changes)
+            return {'ID': bid, 'fields': fields}
+        rows = []
+        for base in (210470000, 210470050):
+            rows.extend([stage(base,200,base+1), stage(base+1,0,base+2,intervalCreateBulletId=base+3),
+                         stage(base+2,25,base+4), stage(base+3,999,base+5,shootAngleXZ=-89),
+                         stage(base+4,999,base+6,shootAngleXZ=-89), stage(base+5,0,-1), stage(base+6,0,-1)])
+        rows.append(stage(210432001,200,210470005,shootAngleXZ=-89,sfxId_Bullet=550104))
+        raw = {'regulationSha256':'fixture','names':{'2004700':'Stone'},'tables':{
+            'Magic':[{'ID':2004700,'fields':magic}], 'Bullet':rows, 'AtkParam_Pc':[]}}
+        code, _ = generate(raw, mmv=True)
+        self.assertIn('TERRAIN_PROBES: &[i32] = &[210470003,210470004,210470053,210470054];', code)
+
     def test_smooth_arc_calibrates_neutral_pitch_not_a_hard_radius(self):
         for speed,angle in [(30.,25.),(12.,0.),(15.,5.),(15.,0.),(23.,-6.)]:
             row=bullet(life=3.,initVellocity=speed,shootAngleXZ=angle)

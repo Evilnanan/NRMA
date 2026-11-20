@@ -182,7 +182,7 @@ def meteor_landings(roots, seen, bullets, limit, launch_height=1.5):
                                      assumedLaunchHeight=launch_height)
 
 
-def compare(mid, seen, moving, bullets, continuations, ground, crystal, limit, crystal_limit, roots, quick_drop=()):
+def compare(mid, seen, moving, bullets, continuations, ground, crystal, limit, crystal_limit, roots, quick_drop=(), terrain_probes=()):
     if mid in (4700, 4701):
         return meteor_landings(roots, seen, bullets, limit)
     samples = {}
@@ -196,7 +196,7 @@ def compare(mid, seen, moving, bullets, continuations, ground, crystal, limit, c
         mmv_probe = mid>8000 and r['shootAngleXZ']<=-80 and r['initVellocity']>=100 and r['atkId_Bullet']==1 and child and child['initVellocity']==0
         probe = (mid == 5010 and bid in {10501001, 10501003, 10501005, 10501007, 10501009}) or bool(mmv_probe)
         sample = flight(bullets[bid], terrain_probe=probe, ground_contact=mid>8000 and r['shootAngleXZ']<0, planar=bid in ground,
-                        cap=crystal_limit if bid in crystal else limit, horizontal_cap=bid in quick_drop)
+                        cap=crystal_limit if bid in crystal else limit, horizontal_cap=bid in quick_drop or bid in terrain_probes)
         if mid == 2006680 and bid == 210668009:
             sample = shadow_child_flight(r, limit)
         if bid in quick_drop:
