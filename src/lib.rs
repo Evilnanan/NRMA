@@ -533,7 +533,7 @@ impl Config {
  fn read(text:&str)->Result<Self,String> {
   let mut c=Self{key:0x75,ctrl:true,cooldown:3000};
   for line in text.lines().map(str::trim).filter(|s|!s.is_empty()&&!s.starts_with([';','#','['])) {
-   let (k,v)=line.split_once('=').ok_or("Expected key=value in NRHex.ini")?;
+   let (k,v)=line.split_once('=').ok_or("Expected key=value in MayhemAugments.ini")?;
    match k.trim() {
     "VirtualKey"=>{let v=v.trim();c.key=if let Some(s)=v.strip_prefix("0x"){i32::from_str_radix(s,16)}else{v.parse()}.map_err(|_|"Invalid VirtualKey")?;},
     // Retired focused keys are accepted only for old-INI compatibility.
@@ -667,10 +667,10 @@ fn extra_hook_targets()->Vec<(usize,*const u8,&'static AtomicPtr<u8>)>{
 
 unsafe extern "system" fn worker(_:*mut c_void)->u32 {
  let dir=match module_path(MODULE.load(Ordering::Acquire)){Ok(p)=>p.parent().unwrap().to_path_buf(),Err(_)=>return 1};
- log::init(&dir,"NRHex.log",log::Level::Info);
- nlog_info!("NRHex {} initializing; PC attack kind=1; continuous casting guard; pool={} abilities / one runtime choice template",env!("CARGO_PKG_VERSION"),hex_pool::HEX_COUNT);
+ log::init(&dir,"MayhemAugments.log",log::Level::Info);
+ nlog_info!("Mayhem Augments {} initializing; PC attack kind=1; continuous casting guard; pool={} abilities / one runtime choice template",env!("CARGO_PKG_VERSION"),hex_pool::HEX_COUNT);
  let init=(||->Result<(),String>{
-  let text=std::fs::read_to_string(dir.join("NRHex.ini")).map_err(|e|e.to_string())?;
+  let text=std::fs::read_to_string(dir.join("MayhemAugments.ini")).map_err(|e|e.to_string())?;
   let config=Config::read(&text)?;nlog_info!("settings: {config:?}");CONFIG.set(config).map_err(|_|"Already initialized")?;
   nlog_info!("Test reward hotkeys compiled in: {}",cfg!(feature="test-hotkeys"));
   SWORD_BONUSES.set(sword::Bonuses::defaults()).map_err(|_|"Sword bonuses already initialized")?;
@@ -2690,7 +2690,7 @@ mod tests {
   for setting in ["VirtualKey=0","VirtualKey=255","VirtualKey=garbage","CooldownMs=999","RequireControl=invalid","Unknown=true"]{assert!(Config::read(setting).is_err(),"{setting}");}
  }
  #[test] fn random_reward_key_keeps_current_settings_and_ignores_retired_bindings(){
-  for c in [Config::read("").unwrap(),Config::read(include_str!("../dist/natives/NRHex.ini")).unwrap()]{assert_eq!((c.key,c.ctrl,c.cooldown),(0x75,true,3000));}
+  for c in [Config::read("").unwrap(),Config::read(include_str!("../dist/natives/MayhemAugments.ini")).unwrap()]{assert_eq!((c.key,c.ctrl,c.cooldown),(0x75,true,3000));}
   let c=Config::read("VirtualKey=0x70\nRequireControl=false\nCooldownMs=4000").unwrap();assert_eq!((c.key,c.ctrl,c.cooldown),(0x70,false,4000));
   for retired in ["TestVirtualKey","NewHexVirtualKey","ChantVirtualKey","AngelChantVirtualKey","GazeVirtualKey","ContractVirtualKey"]{
    for value in ["0x75","0x76","255","ignored"]{let c=Config::read(&format!("{retired}={value}")).unwrap();assert_eq!((c.key,c.ctrl,c.cooldown),(0x75,true,3000));}

@@ -155,7 +155,7 @@ fn native_kill_settlement_preserves_rewards_and_captures_without_last_attacker()
         (0x4e78c0,no_op as *const () as usize),(0xdf24d0,network_send as *const () as usize)]{jump(base,rva,stub);}
     pointer(base+0x3c21ec8,123);pointer(base+0x3c0f338,1);
     let send:unsafe extern "system" fn(usize,usize,i32)=std::mem::transmute(base+0x4f4130);
-    for (npc,elite) in [(40800000,false),(48010010,true)]{
+    for (npc,elite) in [(40800000,false),(34500040,false),(35600110,true)]{
         let reference=[row.as_ptr() as usize,npc];
         pointer(actor+0x5b8,reference.as_ptr() as usize);pointer(actor+0x190,0);
         send(0,actor,81);

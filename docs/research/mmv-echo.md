@@ -66,7 +66,7 @@
 
 `compat/mmv/echo-spells.json` 保存 48 条新增记录的完整取舍，以及 Magic、全部直接根及其可达链、攻击行的审查指纹。允许名字变化，但机制字段变化、新增 Magic 或歧义行会要求重新审查。不能将公共辅助根、子弹体或持续附着的无限寿命根直接加入目录。
 
-`build-mmv.ps1` 在导出合并参数后运行生成器，检查参数导出哈希对应当前暂存资源，再通过 `NRHEX_ECHO_DATA` 编译目标表。独立版的默认表不包含 MMV 条目；发行构建显式选择原版数据，避免继承其他构建的环境变量。
+`build.ps1 -Variant MMV` 在导出合并参数后运行生成器，检查参数导出哈希对应当前暂存资源，再通过 `NRHEX_ECHO_DATA` 编译目标表。独立版的默认表不包含 MMV 条目；发行构建显式选择原版数据，避免继承其他构建的环境变量。
 
 ```powershell
 python -X utf8 tools/build_echo_cast.py --check

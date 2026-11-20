@@ -73,10 +73,10 @@ def configure_profile(path, mod):
     shutil.copy2(path, backup)
     write_profile(path, updated)
     # Keep the existing MMV packaging edit guard in sync with this explicit opt-in.
-    if path.resolve() == (ROOT/'dist/mmv/NRHex-MMV.me3').resolve():
+    if path.resolve() == (ROOT/'dist/mmv/Mayhem Augments-MMV.me3').resolve():
         state_path = ROOT/'work/compat/mmv/package-state.json'
         state = json.loads(state_path.read_text(encoding='utf8'))
-        state['NRHex-MMV.me3'] = sha(path)
+        state['Mayhem Augments-MMV.me3'] = sha(path)
         state_path.write_text(json.dumps(state, indent=2), encoding='utf8')
 
 

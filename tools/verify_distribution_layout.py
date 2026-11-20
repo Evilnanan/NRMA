@@ -28,7 +28,9 @@ def verify_native_migration():
         (base / 'natives').rmdir()
         assert len(migrate(base)) == 3
         assert not old.exists()
-        assert (base / 'natives/NRHex.ini').read_bytes() == b'user=true'
+        assert {p.name for p in (base / 'natives').iterdir()} == {
+            'MayhemAugments.ini', 'MayhemAugments.dll', 'MayhemAugments.log'}
+        assert (base / 'natives/MayhemAugments.ini').read_bytes() == b'user=true'
         assert migrate(base) == {}
 
 
@@ -43,7 +45,7 @@ def verify_record_writer(root):
         reports = fixture / 'dist/reports'
         (reports / 'validation.json').write_text('{"hexes":[]}', encoding='utf-8')
         (reports / 'fixture-validation.json').write_text('{}', encoding='utf-8')
-        dll = fixture / 'dist/natives/NRHex.dll'
+        dll = fixture / 'dist/natives/MayhemAugments.dll'
         dll.write_bytes(b'layout-fixture')
         command = [sys.executable, str(fixture / 'tools/record_build.py'), '--dll', str(dll)]
         subprocess.run(command, check=True, capture_output=True, text=True)
@@ -63,13 +65,13 @@ def verify(root):
     assert not list(dist.glob('*.json')), 'JSON reports leaked into the distribution root'
     for path in reports.glob('*.json'):
         json.loads(path.read_text(encoding='utf-8-sig'))
-    for name in ['启动测试版.ps1', '强制结束游戏.cmd', 'Stop-Nightreign.ps1', 'NRHex.me3', 'README.md']:
+    for name in ['启动测试版.ps1', '强制结束游戏.cmd', 'Stop-Nightreign.ps1', 'Mayhem Augments.me3', 'README.md']:
         assert (dist / name).is_file(), name
     for name in ['validation.json', 'arts-pool.json', 'wraith-inventory-validation.json']:
         assert distribution_file(dist, name) == reports / name
         assert distribution_file(dist, Path(name)) == reports / name
         assert distribution_file(dist, 'reports/' + name) == reports / name
-    for name in ['natives/NRHex.dll', 'mod/regulation.bin', 'NRHex.me3', 'README.md']:
+    for name in ['natives/MayhemAugments.dll', 'mod/regulation.bin', 'Mayhem Augments.me3', 'README.md']:
         assert distribution_file(dist, name) == dist / name
     absolute = root / 'work' / 'validation.json'
     assert distribution_file(dist, absolute) == absolute

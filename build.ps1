@@ -1,6 +1,33 @@
-param([switch]$NoInstall, [switch]$DllOnly, [string]$Destination)
+param(
+    [ValidateSet('standalone','mmv')][string]$Variant = 'standalone',
+    [switch]$NoInstall,
+    [switch]$DllOnly,
+    [string]$MmvRoot = $(if ($env:NRHEX_MMV) { $env:NRHEX_MMV } else { 'D:\Users\OwO\Documents\me3-profiles\MMV' }),
+    [string]$OriginalSfx = $env:NRHEX_ORIGINAL_SFX,
+    [switch]$AuditOnly,
+    [switch]$RecordBaseline,
+    [switch]$StageOnly,
+    [switch]$BuildOnly
+)
 $ErrorActionPreference = 'Stop'
-if ($NoInstall -and $Destination) { throw 'Destination requires installing the current standalone build first.' }
+if ($Variant -eq 'mmv') {
+    if ($DllOnly) { throw '-DllOnly is available for the standalone build only.' }
+    Push-Location $PSScriptRoot
+    try {
+        $taskArgs = @('-X', 'utf8', 'tools/mmv_build.py', '--mmv', $MmvRoot)
+        if ($OriginalSfx) { $taskArgs += @('--original-sfx', $OriginalSfx) }
+        if ($AuditOnly) { $taskArgs += '--audit-only' }
+        if ($RecordBaseline) { $taskArgs += '--record-baseline' }
+        if ($StageOnly) { $taskArgs += '--stage-only' }
+        if ($NoInstall -or $BuildOnly) { $taskArgs += '--build-only' }
+        & python @taskArgs
+        if ($LASTEXITCODE -ne 0) { throw "MMV target stopped (exit $LASTEXITCODE). See work/compat/mmv/build-report.json." }
+    } finally { Pop-Location }
+    return
+}
+foreach ($option in @('MmvRoot', 'OriginalSfx', 'AuditOnly', 'RecordBaseline', 'StageOnly', 'BuildOnly')) {
+    if ($PSBoundParameters.ContainsKey($option)) { throw "-$option requires -Variant MMV." }
+}
 $buildDrive = [IO.Path]::GetPathRoot($PSScriptRoot)
 $me3 = if ($env:NRHEX_ME3) { $env:NRHEX_ME3 } else { Join-Path $buildDrive 'Program Files/me3/bin/me3.exe' }
 $game = if ($env:NRHEX_GAME) { $env:NRHEX_GAME } else { Join-Path $buildDrive 'Program Files (x86)/Steam/steamapps/common/ELDEN RING NIGHTREIGN/Game' }
@@ -13,7 +40,7 @@ if ($env:NRHEX_CARGO_TARGET) {
     $cargoTarget = @('--target', $env:NRHEX_CARGO_TARGET)
     $releaseFolder = Join-Path $PSScriptRoot ('target/' + $env:NRHEX_CARGO_TARGET + '/release')
 }
-$compiledDll = Join-Path $releaseFolder 'NRHex.dll'
+$compiledDll = Join-Path $releaseFolder 'MayhemAugments.dll'
 Push-Location $PSScriptRoot
 try {
     & python -X utf8 tools/restore_dist_resources.py
@@ -319,10 +346,10 @@ try {
         python tools/native_layout.py (Join-Path $PSScriptRoot 'dist')
         if ($LASTEXITCODE -ne 0) { throw 'Native directory migration failed.' }
         New-Item -ItemType Directory -Path (Join-Path $PSScriptRoot 'dist/natives') -Force | Out-Null
-        Copy-Item -LiteralPath $compiledDll -Destination (Join-Path $PSScriptRoot 'dist/natives/NRHex.dll') -Force
+        Copy-Item -LiteralPath $compiledDll -Destination (Join-Path $PSScriptRoot 'dist/natives/MayhemAugments.dll') -Force
     }
     if (-not $DllOnly) {
-        & $me3 profile show --file (Join-Path $PSScriptRoot 'dist/NRHex.me3')
+        & $me3 profile show --file (Join-Path $PSScriptRoot 'dist/Mayhem Augments.me3')
         if ($LASTEXITCODE -ne 0) { throw 'ME3 profile check failed.' }
     }
     $recordArgs = @('--dll', $compiledDll)
@@ -330,5 +357,4 @@ try {
     if ($NoInstall) { $recordArgs += '--no-install' }
     & python -X utf8 tools/record_build.py @recordArgs
     if ($LASTEXITCODE -ne 0) { throw 'Current build record failed.' }
-    if ($Destination) { & ./build-no-hotkeys.ps1 -Destination $Destination }
 } finally { Pop-Location }

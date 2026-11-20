@@ -295,6 +295,7 @@ if(args.Contains("--mmv-map-icons-export")){
  foreach(var e in FMG.Read(f.Bytes).Entries.Where(e=>e.Text!=null&&(e.Text.Contains("池沼")||e.Text.Contains("锻造村"))))text.Add(new{f.Name,e.ID,e.Text});}
  File.WriteAllText(Path.Combine(root,"work/compat/mmv-fixes/map-parameters.json"),JsonSerializer.Serialize(new{tables,text}));Console.WriteLine("Exported map icon parameters/text read-only");return;
 }
+if(args.Contains("--reaver-standalone-export")){MmvSpirit.Export(root,Path.Combine(root,"dist"),root,Parse,standaloneReaver:true);return;}
 if(args.Contains("--spirit-target-export")){var i=Array.IndexOf(args,"--spirit-target-export");MmvSpirit.Export(root,args[i+1],args[i+2],Parse);return;}
 if(args.Contains("--mmv-stage-cages")){MmvCages.Stage(root,args[Array.IndexOf(args,"--mmv-stage-cages")+1],Parse);return;}
 if(args.Contains("--mmv-cages-audit")){MmvCages.Audit(root,args[Array.IndexOf(args,"--mmv-cages-audit")+1]);return;}

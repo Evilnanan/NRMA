@@ -126,8 +126,6 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--mmv', required=True, type=Path)
     parser.add_argument('--original-sfx', type=Path, help='Explicit original common DLC SFX binder for detailed inspection')
-    parser.add_argument('--variant', choices=['dist', 'community', 'both'], default='dist')
-    parser.add_argument('--community-destination', type=Path, help='Explicit external directory for the community variant')
     parser.add_argument('--build-only', action='store_true', help='Prepare packages without replacing installed outputs')
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--record-baseline', action='store_true')
@@ -139,9 +137,6 @@ def main(argv=None) -> int:
                   gameplayVerified=False, output=str(ROOT / config['output']))
     try:
         mmv = args.mmv.resolve(strict=True)
-        if args.variant in ('community', 'both'):
-            from mmv_package import output_path
-            output_path(ROOT, mmv, 'community', args.community_destination)
         # Reports themselves must never be written into the input pack.
         if mmv == ROOT or mmv in ROOT.parents or ROOT in mmv.parents:
             raise ValueError('MMV input must be separate from the NRHex repository')
@@ -344,7 +339,6 @@ def main(argv=None) -> int:
                          ROOT / 'tools/erosion-sources.json', REPORTS / 'staged/erosion_sources.rs']
         runtime_inputs = {str(p.relative_to(ROOT)): digest(p) for p in runtime_paths}
         print('Compiling shared runtime with MMV-generated attack data...', flush=True)
-        variants = ['dist', 'community'] if args.variant == 'both' else [args.variant]
         with (REPORTS / 'cargo-runtime.log').open('w', encoding='utf8') as log:
             subprocess.run(['cargo', 'build', '--release', '--lib', '--no-default-features', '--features', 'cage-demand,mmv-compat',
                             '--target-dir', str(REPORTS / 'targets/runtime')], cwd=ROOT,
@@ -363,12 +357,12 @@ def main(argv=None) -> int:
         if digest(args.original_sfx) != report['extraOriginalSfx']['sha256']:
             raise ValueError('Original SFX input changed during build')
         me3 = Path(os.environ.get('NRHEX_ME3', str(Path(ROOT.anchor) / 'Program Files/me3/bin/me3.exe')))
-        report['packages'] = [package(ROOT, mmv, report['partialPreview']['files'], me3, v, not args.build_only, args.community_destination) for v in variants]
+        report['packages'] = [package(ROOT, mmv, report['partialPreview']['files'], me3, install=not args.build_only)]
         report.update(status='built-awaiting-install' if args.build_only else 'built-awaiting-game-test', runtimeInputs=runtime_inputs,
                       parryDataSha256=digest(REPORTS / 'staged/parry_data.rs'),
                       soulCriticalDataSha256=digest(REPORTS / 'staged/soul_critical_data.rs'),
                       nativeCoexistenceVerified=False, releaseReady=False)
-        print(f'Built MMV {", ".join(variants)}. Installed: {not args.build_only}. Game startup and native DLL coexistence still require testing.')
+        print(f'Built MMV dist. Installed: {not args.build_only}. Game startup and native DLL coexistence still require testing.')
         return 0
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:
         report.update(status='failed', error=str(exc))

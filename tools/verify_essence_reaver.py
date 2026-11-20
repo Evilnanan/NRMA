@@ -18,11 +18,14 @@ effects={e['ID']:e['fields'] for e in d['effects']}
 owner=effects[OWNER]
 assert LAYER not in effects
 assert (owner['stateInfo'],owner['applyIdOnGetSoul'],owner['applyIdOnKillSp'])==(199,PULSE,PULSE)
-assert owner['iconId']==20292 and owner['displayIconForPermamentEffect']==0
+expected_icon=22292 if '--installed' in sys.argv else 20292
+assert owner['iconId']==expected_icon and owner['displayIconForPermamentEffect']==0
 assert owner['maxMpRate']==1 and owner['dispDartDebuffStacks']==0
 ids={FIRST+digit*256+value for digit in range(4) for value in range(1,256)}
 assert ids.issubset(effects) and len(ids)==1020
-for id in ids|{RESET,95002829}:
+# Current builds still clear the legacy reward marker in events after retiring its PARAM row.
+legacy_marker={95002829} if 95002829 in effects or '--installed' not in sys.argv else set()
+for id in ids|{RESET}|legacy_marker:
  e=effects[id]
  assert (e['saveCategory'],e['dontDeleteOnDead'],e['isDisableNetSync'])==(10,1,1)
  assert (e['maxHpRate'],e['maxMpRate'],e['iconId'],e['stateInfo'])==(1,1,-1,0)
@@ -38,7 +41,7 @@ for id,e in events.items():
 
 def run(event,completed=False,ready=True,hub=False,world=False):
  marks={95002829};groups={};pc=0
- for _ in range(256):
+ for _ in range(len(ins)):
   i=events[event]['instructions'][pc];op=i['Bank'],i['ID'];a=bytes.fromhex(i['hex']);pc+=1
   if op==(2000,2):assert a[0]==0
   elif op==(1003,1):
@@ -103,7 +106,7 @@ try:
  aggregate=c.WINFUNCTYPE(c.c_void_p,c.c_void_p,c.c_void_p,c.c_void_p)(memory+1024)
  row[0x353]=owner['displayIconForPermamentEffect']<<3;vector=c.create_string_buffer(0x30);entries=c.create_string_buffer(1200*20);first=c.addressof(entries)
  struct.pack_into('<QQQ',vector,0x10,first,first,first+len(entries))
- entry=c.create_string_buffer(struct.pack('<iiifi',OWNER,20292,0,-1.0,1))
+ entry=c.create_string_buffer(struct.pack('<iiifi',OWNER,expected_icon,0,-1.0,1))
  aggregate(c.addressof(vector),c.addressof(node),c.addressof(entry))
  end=struct.unpack_from('<Q',vector,0x18)[0];assert end==first
  hud.append(dict(visibleIcons=0,displayedCount=0))
@@ -139,7 +142,7 @@ try:
    assert math.isclose(actual,expected,rel_tol=1e-6)
    fp.append(dict(flags=flags,mode=mode,nativeRate=actual))
 finally:assert k.VirtualFree(memory,0,0x8000)
-formula=[dict(kills=count,requestedPower=1.01**count)for count in [0,1,10,50,100,256,1000]]
+formula=[dict(stacks=count,requestedPower=1.01**count)for count in [0,1,5,10,50,100,256,1000]]
 report=dict(nativeCategoryCases=cases,nativeHudCases=hud,nativeFpCases=fp,serializedResetTimelines=timelines,formula=formula,compactSavedRecordLimit=4,nativeSavedCategoryCapacities=saved_limits,originalParameterRowsAndRewardTriplesPreserved=True if not installed else None,gameplayVerified=False,multiplayerVerified=False)
 (work/'native-validation.json').write_text(json.dumps(report,indent=2),encoding='utf8')
 print(f'PASS: {len(fp)} native FP aggregation cases, {len(hud)} hidden-icon case, {len(timelines)} reset timelines and compact records')

@@ -127,7 +127,7 @@ Two-handed attacks can guard enemy blows. After a successful guard, guard counte
 <!-- hex:95002500 -->
 ## Night's Blessing
 
-Falling below 20% HP in the Night's Tide activates continuous healing, but Tide damage rises with exposure time and current HP. Touch a Site of Grace to reset.
+Start healing below 20% HP in the Night's Tide. Tide damage rises with exposure and current HP. Reset at a Site of Grace.
 
 <!-- hex:95002600 -->
 ## Ominous Pact

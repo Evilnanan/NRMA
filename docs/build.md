@@ -4,11 +4,10 @@
 
 | 入口 | 用途 |
 | --- | --- |
-| `build.ps1` | 构建独立版，`-DllOnly` 更新运行时，`-Destination <目录>` 同时导出 |
+| `build.ps1` | 构建独立版，`-DllOnly` 更新运行时 |
 | `build-texts.ps1` | 更新或检查中英文文案 |
-| `build-no-hotkeys.ps1 -Destination <目录>` | 兼容原命令，将当前独立版导出至已有 ME3 配置目录 |
-| `build-release.ps1` | 将当前独立版打成纯净 ZIP |
-| `build-mmv.ps1` | 构建 MMV。本机入口位于 `dist/mmv`，增加 `-Destination <外部目录>` 同时导出便携安装包 |
+| `build-release.ps1` | 打包独立发行版，`-Variant MMV` 打包 MMV 发行版 |
+| `build.ps1 -Variant MMV` | 构建 MMV。本机入口位于 `dist/mmv`，`-NoInstall` 或原有的 `-BuildOnly` 将结果写入暂存目录 |
 
 ### 首次检出
 
@@ -16,7 +15,7 @@ NRMA 从 NRHex 的 `c83f552` 迁移。Git 保存源码、配置、原生输入�
 
 部分构建工具以现有资源包为输入。首次构建会按 SHA-256 校验并补齐缺少的 26 份资源。可用环境变量 `NRHEX_RESOURCE_BASELINE` 指定离线 ZIP；默认也会查找 `releases/standalone-resource-baseline-c83f552.zip`。也可以从相邻的 NRHex 仓库或原远端获取固定提交。获取的对象仅缓存在 `work/`。手动恢复可运行 `python tools/restore_dist_resources.py`。
 
-## 完整构建
+## 独立版完整构建
 
 ```powershell
 ./build.ps1
@@ -25,7 +24,7 @@ NRMA 从 NRHex 的 `c83f552` 迁移。Git 保存源码、配置、原生输入�
 
 完整流程校验原始输入与夹具，生成参数、文本、事件、地图、动作和特效资源，运行原生与脚本检查，再验证、编译并安装 DLL，检查 ME3 配置和记录结果。
 
-`-NoInstall` **只跳过最后的 DLL 替换**，资源和生成代码仍会更新。完整构建需要匹配版本的游戏资源与特效包；ME3 配置必须同时加载 `natives/NRHex.dll` 和 `mod` 资源包。DLL 和 INI 位于 `dist/natives`。
+`-NoInstall` **只跳过最后的 DLL 替换**，资源和生成代码仍会更新。完整构建需要匹配版本的游戏资源与特效包；ME3 配置必须同时加载 `natives/MayhemAugments.dll` 和 `mod` 资源包。DLL 和 INI 位于 `dist/natives`。
 
 动作构建从保留的原始输入开始，再按主脚本顺序组合补丁。不要把单项 HKS 补丁重复施加到已打补丁的文件。主脚本检查咏唱通知后加入救护车的方向查询和起步费用补丁；两种构建模式均运行救护车的原生隔离与HKS费用验证。
 
@@ -38,7 +37,7 @@ NRMA 从 NRHex 的 `c83f552` 迁移。Git 保存源码、配置、原生输入�
 
 此模式复用现有资源，执行常规 Rust 测试，以及死亡之舞、侵蚀、潜能分裂、奖励模板、救护车、回响施放、武器倾向、小点心、一鼓作气和偷心者的编译后原生隔离验证，再编译 DLL 并检查当前游戏 EXE 签名。它不需要重新导出参数、重建动作或读取完整特效包；小点心与一鼓作气检查会回读当前参数包，也不调用 ME3。
 
-默认只替换 `dist/natives/NRHex.dll`。加 `-NoInstall` 后不修改 dist；构建记录保存在 `work/build/dll-validation.json`，不覆盖完整资源构建的验证报告。适用于互斥、抽取限制等仅修改运行时代码的任务；新增参数或资源仍须完整构建。
+默认只替换 `dist/natives/MayhemAugments.dll`。加 `-NoInstall` 后不修改 dist；构建记录保存在 `work/build/dll-validation.json`，不覆盖完整资源构建的验证报告。适用于互斥、抽取限制等仅修改运行时代码的任务；新增参数或资源仍须完整构建。
 
 ## 文案更新
 
@@ -52,19 +51,17 @@ NRMA 从 NRHex 的 `c83f552` 迁移。Git 保存源码、配置、原生输入�
 
 默认仅更新 dist 的四份中英文消息容器。`-Check` 只检查当前包是否匹配文案源；`-NoInstall` 只生成并验证暂存结果。安装前备份，回读失败会恢复；不重建 DLL、参数、地图或动作。完整构建也读取相同文案源。
 
-## 群友版打包
-
-```powershell
-./build-no-hotkeys.ps1 -Destination 'D:/Mods/NRHex'
-```
-
-先构建本机独立版，再运行上述命令。导出时直接复制 `dist/natives/NRHex.dll` 与 `dist/mod`，校验 DLL 版本、必要功能及测试热键未启用，并沿用目标目录已有配置。
-
 ## 纯净发行版
 
 使用 `./build-release.ps1`，复用当前 `dist/mod` 的独立版资源并检查最新中英文文案，复用同一份本机 DLL。默认输出 `releases/Mayhem Augments-<版本>/` 和同名 ZIP；可用 `-OutputDirectory` 指定其他输出父目录，已有同名发行包时停止以避免覆盖。脚本显式选择独立版条件表，不继承 MMV 构建环境。
 
-发行包包含 `mod/`、`natives/` 和 `Mayhem Augments.me3`；内部 DLL/INI 名称仍为 NRHex。ME3 配置仅加载本 Mod，不写入 `start_online`、`disable_arxan` 或开头注释，不复制个人配置、辅助 Mod、MMV、README 或构建报告。打包后验证 ME3 配置和 ZIP 全部文件哈希；报告保存在 `.work/release/`。这一步不重新生成游戏资源，资源改动须先运行对应独立版构建。
+发行包包含 `mod/`、`natives/` 和 `Mayhem Augments.me3`；运行时文件名为 `MayhemAugments.dll` 和 `MayhemAugments.ini`。ME3 配置仅加载本 Mod，不写入 `start_online`、`disable_arxan` 或开头注释，不复制个人配置、辅助 Mod、MMV、README 或构建报告。打包后验证 ME3 配置和 ZIP 全部文件哈希；报告保存在 `.work/release/`。这一步不重新生成游戏资源，资源改动须先运行对应独立版构建。
+
+## MMV 发行版
+
+先用 `./build.ps1 -Variant MMV` 构建本机 MMV 版本，再运行 `./build-release.ps1 -Variant MMV`。产物为 `releases/Mayhem Augments-MMV-<版本>/` 和同名 ZIP。打包时会核对 MMV 基线和已构建的 DLL、资源哈希，使用默认 INI 和相对路径入口。可通过 `-MmvRoot` 指定已安装的 MMV。
+
+将 ZIP 直接解压到匹配版本的 MMV 根目录，让 `Mayhem Augments.me3` 和 MMV 自带的启动入口并列。通过 `Mayhem Augments.me3` 启动。当前本机入口启用的独立 MMV-Fixes 会一并打包。
 
 ## 工具和环境
 
@@ -87,7 +84,7 @@ NRMA 从 NRHex 的 `c83f552` 迁移。Git 保存源码、配置、原生输入�
 
 `dist/reports/` 集中保存验证报告和战技池清单；这些 JSON 不参与游戏加载。`dist` 根目录仅保留启动脚本、强退入口及其脚本、ME3 配置和说明，测试辅助 Mod 由外部工具管理。构建和验证工具从新位置读写报告；旧记录内的裸报告文件名相对于 `reports/` 解析，历史报告内容保持不变。
 
-整理或修改报告路径后可运行 `python tools/verify_distribution_layout.py` 和 `./tools/verify_build_entrypoints.ps1`，检查目录、旧文件名解析及构建流程；不需要重建或重启游戏。群友版仍只打包运行资源，不包含这些报告。
+整理或修改报告路径后可运行 `python tools/verify_distribution_layout.py` 和 `./tools/verify_build_entrypoints.ps1`，检查目录、旧文件名解析及构建流程；不需要重建或重启游戏。发行包只包含运行文件。
 
 完整构建保留已有原生、动作和资源检查，并补入此前专项入口独有的刷怪笼组合、效果同步验证。效果同步在完整构建中检查当前生成参数，不要求存在旧版本迁移的差异报告。
 

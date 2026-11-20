@@ -15,7 +15,7 @@ def pairs(path):
     return [tuple(map(int, m)) for m in re.findall(r'\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)', path.read_text(encoding='utf8'))]
 
 
-def boss_bindings(maps, exported):
+def boss_bindings(maps, exported, *, individual_only=False):
     events = {name: {e['ID']: e for e in rows} for name, rows in exported.items()}
     common = {**events.get('common', {}), **events.get('common_func', {})}
     proof = []
@@ -46,6 +46,10 @@ def boss_bindings(maps, exported):
                 bank, op = instruction['Bank'], instruction['ID']
                 if bank == 2003 and op in (11, 102) and len(data) >= 12:
                     entity = struct.unpack_from('<I', data, 4 if op == 11 else 8)[0]
+                    # Only DisplayBossHealthBar(true, character, ...) identifies an individual.
+                    # LinkToBossHealthBar can attach a helper to someone else's bar.
+                    if individual_only and (op != 11 or data[0] != 1 or entity == 0xffffffff):
+                        continue
                     if entity > 20000:
                         wanted.add(entity)
                 elif bank == 2000 and op in (0, 6) and len(data) >= 8:
@@ -58,9 +62,41 @@ def boss_bindings(maps, exported):
             if not event['Parameters']:
                 walk(event)
         for enemy in enemies:
-            if enemy['entity'] in wanted or any(g and g in wanted for g in enemy['groups']):
+            if enemy['entity'] in wanted or (not individual_only and any(g and g in wanted for g in enemy['groups'])):
                 proof.append(dict(map=name, npc=enemy['NpcParamId'], entity=enemy['entity'], model=enemy['ModelName'], direct=enemy['entity'] in wanted))
     return proof
+
+
+def reaver_bosses(data, *, mmv):
+    maps = {**data['originalMaps'], **data['maps']}
+    proof = boss_bindings(maps, data['events'], individual_only=True)
+    # Do not learn roles from our own generated encounters. Resolve each gaol
+    # NPC from its original template, including MMV's additional encounters.
+    bosses = {p['npc'] for p in proof if p['npc'] > 0 and not 95300000 <= p['npc'] < LIMIT}
+    world = ROOT / 'data/reference/world'
+    solo = json.loads((world / 'cage-bosses.json').read_text(encoding='utf8'))
+    groups = json.loads((world / 'cage-encounters.json').read_text(encoding='utf8'))['groups']
+    clones = {95300000 + i: b['npc'] for i, b in enumerate(solo)}
+    bosses.update(clones.values())
+    for g in groups:
+        members = g['members']
+        bosses.update(members[b['member']]['npc'] for b in g['bars'] if b['member'] >= 0)
+        clones.update((95300000 + m['index'], m['npc']) for m in members)
+    if mmv:
+        extra = json.loads((ROOT / 'compat/mmv/cage-encounters.json').read_text(encoding='utf8'))
+        for encounter in extra['encounters']:
+            members = encounter['members']
+            # These encounters have a verified native HUD target. A group with
+            # only one member identifies its boss even when the bar uses a group ID.
+            if len(members) == 1:
+                bosses.add(members[0]['npc'])
+            clones.update((95300200 + m['index'], m['npc']) for m in members)
+    bosses.update({clone for clone, source in clones.items() if source in bosses})
+    return sorted(bosses)
+
+
+def reaver_array(ids):
+    return 'pub const INDIVIDUAL_BOSSES: &[i32] = &[' + ','.join(map(str, ids)) + '];\n'
 
 
 def generate(data):
@@ -112,6 +148,7 @@ def generate(data):
     rust = '// Generated MMV private NPCs; native private IDs are preserved.\n'
     rust += array('EXTRA_NPCS', sorted(new)) + array('MODELS', sorted(model_pairs))
     rust += 'pub const BOSSES: &[i32] = &[' + ','.join(map(str, bosses)) + '];\n'
+    rust += reaver_array(reaver_bosses(data, mmv=True))
     plan = dict(regulationSha256=data['regulationSha256'], pairs=mapping)
     report = dict(existingPrivateRows=len(native), newPrivateRows=len(new), establishedMmvPrivateRows=len(registry), appendedPrivateRows=len(extra), bossNpcVariants=len(bosses),
                   bossBindings=proof, ambiguousModelNpcs=ambiguous, unsupportedDescriptorNpcs=unsupported, nativeKillSettlementUnchanged=True,
@@ -121,8 +158,15 @@ def generate(data):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--overlay', type=Path, required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--overlay', type=Path)
+    mode.add_argument('--standalone-reaver', action='store_true')
     args = parser.parse_args()
+    if args.standalone_reaver:
+        data = json.loads((ROOT / 'work/reaver-standalone-inputs.json').read_text(encoding='utf8'))
+        ids = reaver_bosses(data, mmv=False)
+        (ROOT / 'src/reaver_bosses.rs').write_text('// Generated from original boss HUD bindings and gaol templates.\n' + reaver_array(ids), encoding='utf8')
+        return
     data = json.loads((REPORTS / 'spirit-parameters.json').read_text(encoding='utf8'))
     if Path(data['overlay']).resolve() != args.overlay.resolve():
         raise ValueError('Spirit export belongs to a different overlay')

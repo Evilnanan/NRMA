@@ -4,28 +4,28 @@
 
 采用同仓库、同主分支维护两种发行目标。海克斯逻辑、数值、中文和英文源继续共用；MMV 特有的资源合并及兼容策略放在这里，不复制一份 Rust 代码或文案长期维护。
 
-加载方式为 **现有 MMV 包＋独立 NRHex-MMV 包**，由 ME3 显式声明覆盖优先级。MMV 安装目录作为只读依赖，不改原文件、原 profile 或原 DLL；适配时保留 MMV 自身玩法。遇到同名资源，合并副本只写入 NRHex-MMV 的暂存／发行目录。ME3 的加载顺序只能决定整文件覆盖，不能替代同名资源内部的合并。
+加载方式为 **现有 MMV 包＋独立 Mayhem Augments MMV 包**，由 ME3 显式声明覆盖优先级。MMV 安装目录作为只读依赖，不改原文件、原 profile 或原 DLL；适配时保留 MMV 自身玩法。遇到同名资源，合并副本只写入 Mayhem Augments MMV 的暂存／发行目录。ME3 的加载顺序只能决定整文件覆盖，不能替代同名资源内部的合并。
 
-同一份 MMV 合并资源和运行时供本机与分发使用。默认写入 `dist/mmv/`；传入 `-Destination <外部绝对路径>` 同时导出可复制的安装包。两种布局的 DLL 和游戏资源逐字节相同。本机入口引用已安装的 MMV，分发入口使用相对路径。`-BuildOnly` 可暂存包，`-AuditOnly` 和 `-StageOnly` 分别检查输入与准备资源。
+同一份 MMV 合并资源和运行时供本机与分发使用。默认写入 `dist/mmv/`；运行 `./build-release.ps1 -Variant MMV` 将现有构建打成发行 ZIP。两种布局的 DLL 和游戏资源逐字节相同。本机入口引用已安装的 MMV，分发入口使用相对路径。`-NoInstall`（也可写作 `-BuildOnly`）可暂存包，`-AuditOnly` 和 `-StageOnly` 分别检查输入与准备资源。
 
-独立版入口为 `dist/启动测试版.ps1`，MMV 入口为 `dist/启动MMV测试版.ps1`。两者分别加载自己的资源与 DLL；MMV 配置位于 `dist/mmv/NRHex-MMV.me3`。不同时启动两版。
+独立版入口为 `dist/启动测试版.ps1`，MMV 入口为 `dist/启动MMV测试版.ps1`。两者分别加载自己的资源与 DLL；MMV 配置位于 `dist/mmv/Mayhem Augments-MMV.me3`。不同时启动两版。
 
-### 可复制的 MMV 群友版
+### MMV 发行包
 
-`-Variant community -CommunityDestination 'D:/Users/OwO/Documents/me3-profiles/MayhemAugments-MMV-community'` 输出增量安装目录。将其**内容**复制到匹配版本的 MMV 根目录后，通过 `Mayhem Augments.me3` 启动 MMV＋MA，不从构建输出目录直接启动。无需复制或改写 MMV 原来的 `mod/`、`dll/`、`logs/` 和启动配置。
+将 `releases/Mayhem Augments-MMV-<版本>.zip` 解压到匹配版本的 MMV 根目录，通过同目录的 `Mayhem Augments.me3` 启动。压缩包根目录如下。
 
 ```text
 Mayhem Augments.me3
 MayhemAugments/
   mod/                   合并后的 MA 适配资源
-  natives/NRHex.dll     与本机入口相同的 DLL
-  natives/NRHex.ini
+  natives/MayhemAugments.dll     与本机入口相同的 DLL
+  natives/MayhemAugments.ini
 MMV-Fixes/               测试入口已显式启用时，携带独立修复包
   mod/
   natives/MMVFixes.dll
 ```
 
-入口全部使用相对路径，资源顺序为 MMV → MA → 独立 MMV-Fixes；保留 MMV 原生 DLL 配置和存档名。MMV 入口保留原配置的 `start_online` 和 `disable_arxan`（当前均为 `true`），不写开头注释；独立发行版仍采用自己的入口约定。NRHex 的运行日志写在自身 DLL 同目录，不占用 MMV 的顶层日志目录。构建报告、修复包的本机来源清单、历史日志、测试工具不进入群友包。
+入口全部使用相对路径，资源顺序为 MMV → MA → 独立 MMV-Fixes；保留 MMV 原生 DLL 配置和存档名。MMV 入口保留原配置的 `start_online` 和 `disable_arxan`（当前均为 `true`），不写开头注释；独立发行版仍采用自己的入口约定。MayhemAugments.log 运行日志写在自身 DLL 同目录，不占用 MMV 的顶层日志目录。构建报告、修复包的本机来源清单、历史日志、测试工具不进入发行包。
 
 独立修复包从当前测试入口的显式启用项取得，只携带经 manifest 哈希核对的运行文件；不合入 MA 资源。以后不需要这些修复时，从 `Mayhem Augments.me3` 删除 ID 为 `mmv-fixes` 的一个 package 和一个 native，再删除 `MMV-Fixes/` 即可。删除整个增量包的两个目录和新入口即可恢复使用 MMV 原入口。MMV 升级后须重新核对和构建适配资源，不能把旧合并包直接当作通用补丁。
 
@@ -33,14 +33,14 @@ MMV-Fixes/               测试入口已显式启用时，携带独立修复包
 ## 入口与输入
 
 ```powershell
-./build-mmv.ps1 -AuditOnly
-./build-mmv.ps1 -MmvRoot 'D:/Mods/MMV' -AuditOnly
-./build-mmv.ps1 -OriginalSfx 'D:/Original/sfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx'
+./build.ps1 -Variant MMV -AuditOnly
+./build.ps1 -Variant MMV -MmvRoot 'D:/Mods/MMV' -AuditOnly
+./build.ps1 -Variant MMV -OriginalSfx 'D:/Original/sfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx'
 ```
 
-MMV 路径也可以通过 `NRHEX_MMV` 指定。脚本使用当前 `dist/mod` 作为 NRHex 的共享资源输入，与群友版沿用同样的更新顺序：先更新独立版资源，再生成其他目标。不自动调用完整构建，因为现有 `build.ps1 -NoInstall` 仍会修改 dist 的资源。
+MMV 路径也可以通过 `NRHEX_MMV` 指定。脚本使用当前 `dist/mod` 作为 NRHex 的共享资源输入。先更新独立版资源，再生成 MMV 目标。不自动调用完整构建，因为现有 `build.ps1 -NoInstall` 仍会修改 dist 的资源。
 
-工具要求 Python 3.12+（含 pefile 和下述 Lupa 依赖）、PowerShell、.NET 10、Rust、Smithbox/SoulsFormats 及匹配版本的原始游戏文件。沿用 `NRHEX_GAME`、`NRHEX_SMITHBOX` 和 `NRHEX_ME3`。检查报告、编译缓存及生成的条件表放在 `work/compat/mmv/`，发行目录为 `dist/mmv/`；不写入原 MMV、独立版 `dist/mod` 或未指定的群友版目录。
+工具要求 Python 3.12+（含 pefile 和下述 Lupa 依赖）、PowerShell、.NET 10、Rust、Smithbox/SoulsFormats 及匹配版本的原始游戏文件。沿用 `NRHEX_GAME`、`NRHEX_SMITHBOX` 和 `NRHEX_ME3`。检查报告、编译缓存及生成的条件表放在 `work/compat/mmv/`，本机构建写入 `dist/mmv/`，发行包写入 `releases/`。
 
 `baseline.lock.json` 锁定 MMV 的所有 mod 资源、dll 目录文件、根目录 ME3 配置，以及入口引用的其他目录 DLL 及相邻 INI/YAML（包括 Hotfix1 的 `tools/ChanceSetter`）；日志、存档不计入。除 `.log` 和 `logs/` 外，明确排除已核实为 nraio 运行日志的 `dll/target/release/0987.txt`，不笼统忽略 `.txt` 配置。锁文件不包含 MMV 游戏资源，也不代表该版本已经兼容。内容变化后检查会停止，不能通过每次自动重录锁来跳过复核。
 
@@ -58,7 +58,7 @@ MMV 路径也可以通过 `NRHEX_MMV` 指定。脚本使用当前 `dist/mod` 作
 - **地图**：四张地图仅添加刷怪笼条目，检查入口位置、名称和实体／组 ID 冲突。撤销新增条目后必须逐字节恢复 MMV 原地图的解压数据。
 - **DLL、加载配置**：MMV 运行时统一以 `cage-demand,mmv-compat` 编译一次。打包时检查 PE 导入表，确认已移除内置热键轮询。`build.rs` 经 `NRHEX_PARRY_DATA` 选择 MMV 条件表；未提供时继续使用独立版表。新配置引用 MMV 原目录和原 DLL，保留存档名、在线设置、重定向器及其他 native 项；显式 `load_after = [{ id = "mod", optional = false }]` 让适配包覆盖 MMV 同名资源。ME3 0.11.0 的依赖排序和文件映射源码已核对：后加载的文件覆盖前者。配置用本机 `profile show --file` 校验。测试版已与原 MMV DLL 一同加载并完成初始化；这不代表所有原生钩子的玩法交互都已验证。
 
-构建必须覆盖当前共享资源集合中的每个文件，并通过各格式回读、输入前后哈希核对，才输出 `dist/mmv/NRHex-MMV.me3`、资源和 DLL。报告标注 `built-awaiting-game-test`，不把构建成功写成实测通过。后续构建保留用户 INI；检测到手动修改生成的资源或 profile 时停止，不静默覆盖。构建记录留在 work，不放入发行包。
+构建必须覆盖当前共享资源集合中的每个文件，并通过各格式回读、输入前后哈希核对，才输出 `dist/mmv/Mayhem Augments-MMV.me3`、资源和 DLL。报告标注 `built-awaiting-game-test`，不把构建成功写成实测通过。后续构建保留用户 INI；检测到手动修改生成的资源或 profile 时停止，不静默覆盖。构建记录留在 work，不放入发行包。
 
 原 MMV profile 的“Optional”段列出 `NightreignFPSFOV.dll`、`UnlockTheFps.dll` 和 `UltrawideFix.dll`，但没有设置 `optional=true`。这三个文件缺失时，仅在新生成的适配 profile 内标记为可选，防止 ME3 中断后续 DLL／资源加载；原 MMV profile 不变。其他必需 DLL 缺失仍阻止构建。
 
@@ -99,7 +99,7 @@ python -m unittest discover -s tools -p test_mmv_build.py
 python -m pip install --target .work/mmv-python -r compat/mmv/requirements.txt
 python -m unittest discover -s tools -p test_mmv_hks.py
 dotnet build tools/HexBuild
-./build-mmv.ps1 -AuditOnly
+./build.ps1 -Variant MMV -AuditOnly
 ```
 
 后续可玩版本需要验证启动、圆桌、升级领奖、昼夜与 BOSS 生成、刷怪笼、动作海克斯、施法，以及双方使用相同适配包的联机。构建或审计成功不代替这些实测。

@@ -14,12 +14,12 @@ assert sha(work/'regulation.bin')==p['outputSha256']
 assert sha(dist/'mod/regulation.bin') in [p['inputSha256'],p['outputSha256']]
 t=json.loads((work/'texts/validation.json').read_text())
 assert sha(root/'docs/hexes.md')==t['sourceSha256']
-files=[(work/'NRHex.dll',dist/'natives/NRHex.dll'),(work/'regulation.bin',dist/'mod/regulation.bin'),(work/'README.md',dist/'README.md')]
+files=[(work/'MayhemAugments.dll',dist/'natives/MayhemAugments.dll'),(work/'regulation.bin',dist/'mod/regulation.bin'),(work/'README.md',dist/'README.md')]
 for row in t['reports']:
  a=work/'texts'/row['language']/row['file'];b=dist/'mod/msg'/row['language']/row['file']
  assert sha(a)==row['outputSha256'] and sha(b) in [row['inputSha256'],row['outputSha256']]
  files.append((a,b))
-assert sha(work/'NRHex.dll')==sha(root/'target/release/NRHex.dll'),'Build changed since staging'
+assert sha(work/'MayhemAugments.dll')==sha(root/'target/release/MayhemAugments.dll'),'Build changed since staging'
 assert subprocess.run(['powershell','-NoProfile','-Command','if(Get-Process nightreign -ErrorAction SilentlyContinue){exit 1}else{exit 0}']).returncode==0,'Game still running; preserve current test'
 for a,b in files:
  saved=work/'install-before'/b.relative_to(dist);saved.parent.mkdir(parents=True,exist_ok=True)

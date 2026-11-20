@@ -1,6 +1,6 @@
 # MMV-Fixes
 
-独立的 MMV 原包问题修复层，不依赖 Mayhem Augments / NRHex。不修改 MMV 原目录、海克斯参数或 DLL。包含资源包和独立的 `natives/MMVFixes.dll`。当前包含：
+独立的 MMV 原包问题修复层，不依赖 Mayhem Augments。不修改 MMV 原目录、海克斯参数或 DLL。包含资源包和独立的 `natives/MMVFixes.dll`。当前包含：
 
 - **炎之恶魔 c6220 骨骼越界**：原行为节点 `Fall_Twist_Neck/Head` 引用 124/130，但该骨架只有 124 根骨骼（0～123）。改为实际 `Neck=90 / Head=91`，只改四个 16 位索引字段。该错误与 2026-10-26 19:51 的 `hkbTwistModifier` 崩溃吻合；转储未包含角色堆对象，仍需进游戏复测，不能认定已排除所有崩溃原因。
 - **鸦人骑士 c6210 骨骼越界**：同名扭转节点也引用 124/130，而该骨架只有 115 根骨骼（0～114）。改为实际 `Neck=72 / Head=73`，只改四个 16 位索引字段，保留变量绑定和其他动作。2026-11-10 群友版赶路崩溃的角色上下文对应爪型鸦人骑士，故障位于同一骨骼链处理路径。已核对资源越界；修复后仍需游戏内复测。
@@ -16,7 +16,7 @@ MMV 上游修复后，在实际使用的 `.me3` 配置中移除 `id = "mmv-fixes
 仓库内可用以下命令从海克斯 MMV 测试配置移除（只改这一项）：
 
 ```powershell
-python -X utf8 tools/mmv_fixes.py --disable-profile dist/mmv/NRHex-MMV.me3
+python -X utf8 tools/mmv_fixes.py --disable-profile "dist/mmv/Mayhem Augments-MMV.me3"
 ```
 
 海克斯 MMV 构建只保留已明确启用的修复项；移除该项后不会自动重新启用。

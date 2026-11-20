@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $taskDrive = [IO.Path]::GetPathRoot($PSScriptRoot)
 $taskMe3 = if ($env:NRHEX_ME3) { $env:NRHEX_ME3 } else { Join-Path $taskDrive 'Program Files/me3/bin/me3.exe' }
 if ($ValidateOnly) {
-    & $taskMe3 profile show --file (Join-Path $PSScriptRoot 'NRHex.me3')
+    & $taskMe3 profile show --file (Join-Path $PSScriptRoot 'Mayhem Augments.me3')
     if ($LASTEXITCODE -ne 0) { throw "ME3 profile check failed: $LASTEXITCODE" }
     return
 }
@@ -15,7 +15,7 @@ if (Test-Path -LiteralPath $taskManifest) {
         throw '请先退出当前游戏，再启动新版。不会自动关闭游戏。'
     }
     $taskUpdate = Get-Content -LiteralPath $taskManifest -Raw -Encoding UTF8 | ConvertFrom-Json
-    $taskInstalled = Join-Path $PSScriptRoot 'natives/NRHex.dll'
+    $taskInstalled = Join-Path $PSScriptRoot 'natives/MayhemAugments.dll'
     $taskCurrentHash = (Get-FileHash -LiteralPath $taskInstalled -Algorithm SHA256).Hash
     if ($taskCurrentHash -notin @($taskUpdate.previousDllSha256, $taskUpdate.dllSha256)) {
         throw '当前 DLL 与待更新版本的基线不符，请重新构建后更新。'
@@ -44,5 +44,5 @@ if (Test-Path -LiteralPath $taskManifest) {
     Remove-Item -LiteralPath $taskManifest
 }
 $taskGame = if ($env:NRHEX_GAME) { $env:NRHEX_GAME } else { Join-Path $taskDrive 'Program Files (x86)/Steam/steamapps/common/ELDEN RING NIGHTREIGN/Game' }
-& $taskMe3 launch -g nightreign -p "$PSScriptRoot\NRHex.me3" -e "$taskGame/nightreign.exe"
+& $taskMe3 launch -g nightreign -p "$PSScriptRoot\Mayhem Augments.me3" -e "$taskGame/nightreign.exe"
 if ($LASTEXITCODE -ne 0) { throw "ME3 launch failed: $LASTEXITCODE" }

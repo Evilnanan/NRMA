@@ -1,8 +1,8 @@
 param([switch]$ValidateOnly)
 $ErrorActionPreference = 'Stop'
-$taskProfile = Join-Path $PSScriptRoot 'mmv/NRHex-MMV.me3'
+$taskProfile = Join-Path $PSScriptRoot 'mmv/Mayhem Augments-MMV.me3'
 if (-not (Test-Path -LiteralPath $taskProfile -PathType Leaf)) {
-    throw '缺少 MMV 测试包，请先运行 build-mmv.ps1。'
+    throw '缺少 MMV 测试包，请先运行 build.ps1 -Variant MMV。'
 }
 $taskDrive = [IO.Path]::GetPathRoot($PSScriptRoot)
 $taskMe3 = if ($env:NRHEX_ME3) { $env:NRHEX_ME3 } else { Join-Path $taskDrive 'Program Files/me3/bin/me3.exe' }

@@ -71,7 +71,7 @@ class MmvPreflightTests(unittest.TestCase):
         repo = self.folder / 'repo'
         repo.mkdir()
         config = repo / 'target.json'
-        config.write_text(json.dumps(dict(name='NRHex-MMV', output='dist/mmv', requiredAdapters=['HKS'])))
+        config.write_text(json.dumps(dict(name='Mayhem Augments MMV', output='dist/mmv', requiredAdapters=['HKS'])))
         (repo / 'Cargo.toml').write_text('[package]\nversion="test"\n')
         reports = repo / 'work'
         lock = repo / 'baseline.lock.json'

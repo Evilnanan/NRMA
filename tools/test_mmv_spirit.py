@@ -21,6 +21,18 @@ class HudBindingTests(unittest.TestCase):
         events['m_test'][0]['instructions'].clear()
         self.assertEqual(boss_bindings(maps, events), [])
 
+    def test_reaver_uses_only_enabled_individual_health_bars(self):
+        group, named, linked, hidden, helper = range(12340800, 12340805)
+        def hud(op, args):
+            return dict(Bank=2003, ID=op, hex=struct.pack('<III', *args).hex())
+        events = {'arena': [dict(ID=0, Parameters=[], instructions=[
+            hud(11, (1, group, 0)), hud(11, (1, named, 0)),
+            hud(102, (1, named, linked)), hud(11, (0, hidden, 0))])]}
+        maps = {'arena': [dict(NpcParamId=e, entity=e, groups=[group], ModelName='c5000')
+                          for e in (named, linked, hidden, helper)]}
+        self.assertEqual({p['npc'] for p in boss_bindings(maps, events)}, {named, linked, hidden, helper})
+        self.assertEqual([p['npc'] for p in boss_bindings(maps, events, individual_only=True)], [named])
+
 
 @unittest.skipUnless((REPORTS/'spirit-parameters.json').exists(), 'requires MMV NPC/event/map export')
 class SpiritTargetTests(unittest.TestCase):
@@ -59,6 +71,12 @@ class SpiritTargetTests(unittest.TestCase):
         self.assertIn(53001000, bosses)  # Rellana.
         self.assertNotIn(51400099, bosses)  # Messmer's auxiliary serpent, despite boss flag.
         self.assertNotIn(31600020, bosses)  # Horse is not promoted by reward flags.
+
+    def test_reaver_mmv_gaol_copies_follow_their_sources(self):
+        line = next(line for line in self.output.splitlines() if line.startswith('pub const INDIVIDUAL_BOSSES'))
+        bosses = {int(npc) for npc in line.split('= &[', 1)[1].removesuffix('];').split(',')}
+        self.assertTrue({46400960, 95300220} <= bosses)  # Solitary Putrid Tree Spirit.
+        self.assertTrue({37020080, 95300203, 32010036, 95300217}.isdisjoint(bosses))  # Miranda's attendants.
 
     def test_duplicate_sources_and_private_collisions_fail_closed(self):
         data = copy.deepcopy(self.data)

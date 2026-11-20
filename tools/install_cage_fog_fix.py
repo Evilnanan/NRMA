@@ -18,8 +18,8 @@ for report in patch['reports']:
  assert report['inputSha256'].lower()==baseline[name] and report['outputSha256'].lower()==digest(source)
  assert report['unrelatedEventsAndConstructorUnchanged'] and len(report['events'])==84
  assets[name]=source
-assets['natives/NRHex.dll']=root/'target/release/NRHex.dll'
-assert digest(assets['natives/NRHex.dll'])!=baseline['natives/NRHex.dll']
+assets['natives/MayhemAugments.dll']=root/'target/release/MayhemAugments.dll'
+assert digest(assets['natives/MayhemAugments.dll'])!=baseline['natives/MayhemAugments.dll']
 for name,source in assets.items():
  backup=work/'before/dist'/name;backup.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(distribution_file(dist,name),backup)
 for name in ['scope-validation.json','build-validation.json','runtime-validation.json','integration-validation.json','icon-validation.json']:

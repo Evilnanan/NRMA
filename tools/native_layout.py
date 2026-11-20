@@ -9,7 +9,7 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def migrate(directory: Path):
+def move_native_directory(directory: Path):
     directory = directory.resolve()
     old, new = directory / 'mod/natives', directory / 'natives'
     if not old.exists():
@@ -28,6 +28,26 @@ def migrate(directory: Path):
                 pass
     old.rename(new)
     assert all(digest(new / relative) == value for relative, value in hashes.items())
+    return hashes
+
+
+def migrate(directory: Path):
+    hashes = move_native_directory(directory)
+    directory = directory.resolve()
+    native = directory / 'natives'
+    for ext in ('ini', 'log', 'dll'):
+        old = native / ('NRHex.' + ext)
+        new = native / ('MayhemAugments.' + ext)
+        if not old.is_file():
+            continue
+        if old.resolve() != old.absolute() or new.resolve() != new.absolute():
+            raise ValueError(f'Linked native path cannot be migrated: {old}')
+        if new.exists():
+            if digest(old) != digest(new):
+                raise ValueError(f'Both native filenames exist with different contents: {old}, {new}')
+            old.unlink()
+        else:
+            old.rename(new)
     return hashes
 
 

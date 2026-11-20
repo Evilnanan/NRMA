@@ -17,7 +17,7 @@ fn elite_threat(id:i32)->bool{
 unsafe fn elite_victim(victim:usize,base:usize)->bool{
  let Some(npc)=crate::native_actor::npc_id(victim,base) else{return false};
  if crate::spirit::is_private_npc(npc){return false;}
- if crate::spirit::boss_npc(npc){return true;}
+ if crate::spirit_target_data::INDIVIDUAL_BOSSES.binary_search(&npc).is_ok(){return true;}
  // Default effects survive death cleanup in the NPC row. These three blocks
  // are spEffectID0..7, 8..15 and 16..31 in NpcParam (regulation 10350000).
  let row=read_ptr(read_ptr(victim+0x5b8));
@@ -168,11 +168,31 @@ pub unsafe fn update(player:usize,base:usize){
 #[cfg(test)]mod tests{
  use super::*;
  #[test]fn aggregate_preserves_native_bonuses_and_remains_finite(){
-  for count in [0,1,50,100,256,1000]{for native in [0.8,1.0,1.2]{
+  for count in [0,1,5,50,100,256,1000]{for native in [0.8,1.0,1.2]{
    let expected=native as f64*1.01f64.powi(count as i32);
    assert!((combined_rate(native,count)as f64/expected-1.0).abs()<0.000001);
   }}
   assert!(combined_rate(1.2,u32::MAX).is_finite());
+ }
+ #[test]
+ fn shared_bar_members_and_gaol_copies_use_their_own_grade(){
+  let mut victim=[0usize;0x600/8];
+  let mut vt=[0usize;0x1a8/8];
+  vt[0x1a0/8]=0x4d1ea0;
+  victim[0]=vt.as_ptr() as usize;
+  for (source,copy,threat,elite) in [
+   (34500040,95300043,7714,false), (34510040,95300047,7724,false),
+   (39701110,95300037,7734,true), (39703010,95300038,7724,false),
+   (35600110,95300060,0,true), (35700110,95300061,0,true),
+  ]{
+   let mut row=[0i32;0x270/4];
+   row[0x4c/4]=threat;
+   for npc in [source,copy]{
+    let reference=[row.as_ptr() as usize,npc];
+    victim[0x5b8/8]=reference.as_ptr() as usize;
+    assert_eq!(unsafe{elite_victim(victim.as_ptr() as usize,0)},elite,"NPC {npc}");
+   }
+  }
  }
  #[test]fn compact_count_roundtrips_carries_and_never_uses_more_than_four_save_slots(){
   for count in [0,1,2,18,50,99,255,256,257,65535,65536,16777215,16777216,u32::MAX]{

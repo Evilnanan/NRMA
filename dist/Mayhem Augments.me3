@@ -6,8 +6,8 @@ disable_arxan = true
 game = "nightreign"
 
 [[packages]]
-id = "nrhex"
+id = "mayhem-augments"
 source = "mod"
 
 [[natives]]
-path = "natives/NRHex.dll"
+path = "natives/MayhemAugments.dll"

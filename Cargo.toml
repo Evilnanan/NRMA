@@ -1,11 +1,11 @@
 [package]
-name = "nrhex"
-version = "0.17.369"
+name = "mayhem-augments"
+version = "0.17.373"
 edition = "2021"
 publish = false
 
 [lib]
-name = "NRHex"
+name = "MayhemAugments"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]

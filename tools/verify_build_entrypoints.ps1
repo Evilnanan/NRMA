@@ -41,7 +41,7 @@ try {
         if ($mode -eq 'DllFailure') {
             Assert-True $failed 'Native verification failure was swallowed'
             Assert-True (-not (Has-Call 'cargo' 'build --release')) 'Build continued after verification failed'
-            Assert-True (-not (Has-Call 'copy' 'NRHex.dll')) 'A failed build installed a DLL'
+            Assert-True (-not (Has-Call 'copy' 'MayhemAugments.dll')) 'A failed build installed a DLL'
             Assert-True (-not (Has-Call 'python' 'record_build.py')) 'A failed build was recorded as successful'
         } else {
             Assert-True (Has-Call 'cargo' 'test --release --lib --target x86_64-pc-windows-gnu') 'Target was not forwarded to regression tests'
@@ -61,21 +61,39 @@ try {
                 Assert-True (Has-Call 'python' 'verify_cage_groups.py') 'Missing group lifecycle verification'
                 Assert-True (Has-Call 'dotnet' '--regulation-compression') 'Full build skipped resource generation'
                 Assert-True (Has-Call 'me3' 'profile show') 'Full build skipped profile validation'
-                Assert-True (-not (Has-Call 'copy' 'NRHex.dll')) 'NoInstall replaced the DLL'
+                Assert-True (-not (Has-Call 'copy' 'MayhemAugments.dll')) 'NoInstall replaced the DLL'
             } else {
                 Assert-True (-not (Has-Call 'dotnet' '--regulation-compression')) 'DLL-only build regenerated gameplay resources'
                 Assert-True (-not (Has-Call 'me3' '')) 'DLL-only build requires ME3'
                 Assert-True (Has-Call 'python' '--dll-only') 'DLL build overwrote full-build records'
-                Assert-True ((Has-Call 'copy' 'NRHex.dll') -eq ($mode -eq 'DllInstall')) 'DLL installation did not respect NoInstall'
+                Assert-True ((Has-Call 'copy' 'MayhemAugments.dll') -eq ($mode -eq 'DllInstall')) 'DLL installation did not respect NoInstall'
                 if ($mode -eq 'DllInstall') {
-                    Assert-True (Has-Call 'copy' 'target*x86_64-pc-windows-gnu*release*NRHex.dll') 'Installed DLL came from the wrong target'
+                    Assert-True (Has-Call 'copy' 'target*x86_64-pc-windows-gnu*release*MayhemAugments.dll') 'Installed DLL came from the wrong target'
                 }
             }
         }
         Write-Host "PASS: $mode"
     }
+    $mmvOptions = [ordered]@{ AuditOnly='--audit-only'; StageOnly='--stage-only'; RecordBaseline='--record-baseline'; NoInstall='--build-only'; BuildOnly='--build-only' }
+    foreach ($option in $mmvOptions.Keys) {
+        $global:NRHexBuildFixtureCalls.Clear()
+        $global:NRHexBuildFixtureFailure = ''
+        $options = @{ Variant='MMV'; MmvRoot='D:\fixture MMV'; OriginalSfx='D:\fixture assets\original.dcx' }
+        $options[$option] = $true
+        & (Join-Path $work 'build.ps1') @options
+        Assert-True ($global:NRHexBuildFixtureCalls.Count -eq 1) 'MMV build entered the standalone pipeline'
+        $call = $global:NRHexBuildFixtureCalls[0]
+        $expectedArgs = @('-X','utf8','tools/mmv_build.py','--mmv',$options.MmvRoot,'--original-sfx',$options.OriginalSfx,$mmvOptions[$option])
+        Assert-True ($call.Name -eq 'python' -and ($call.Arguments -join '|') -ceq ($expectedArgs -join '|')) "MMV lost arguments for $option"
+    }
+    $global:NRHexBuildFixtureFailure = 'tools/mmv_build.py'
+    $failed = $false
+    try { & (Join-Path $work 'build.ps1') -Variant MMV } catch { $failed = $_.Exception.Message -like '*exit 7*' }
+    Assert-True $failed 'MMV build failure was swallowed'
+    Assert-True ((Get-Location).Path -eq $location.Path) 'MMV build did not restore the working directory'
+    Write-Host 'PASS: MMV routing, options and failure propagation'
     $entrypoints = @(Get-ChildItem $root -Filter 'build*.ps1' | Sort-Object Name)
-    $expected = @('build-mmv.ps1', 'build-no-hotkeys.ps1', 'build-release.ps1', 'build-texts.ps1', 'build.ps1')
+    $expected = @('build-release.ps1', 'build-texts.ps1', 'build.ps1')
     Assert-True ($entrypoints.Count -eq $expected.Count -and @(Compare-Object $entrypoints.Name $expected).Count -eq 0) 'Unexpected build entrypoints remain'
     foreach ($entrypoint in $entrypoints) {
         $tokens = $null; $errors = $null

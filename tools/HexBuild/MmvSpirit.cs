@@ -6,29 +6,36 @@ using System.Text.Json;
 static class MmvSpirit {
  static string Name(BinderFile f)=>f.Name.Replace('\\','/').Split('/').Last();
  static string Hash(string p)=>Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p))).ToLowerInvariant();
- public static void Export(string root,string overlay,string mmv,Func<string,Memory<byte>,PARAM> parse){
+ public static void Export(string root,string overlay,string mmv,Func<string,Memory<byte>,PARAM> parse,bool standaloneReaver=false){
   overlay=Path.GetFullPath(overlay);mmv=Path.GetFullPath(mmv);
   var regulation=Path.Combine(overlay,"mod/regulation.bin");var hash=Hash(regulation);
   var binder=SFUtil.DecryptNightreignRegulation(regulation);
   var npc=parse("NpcParam",binder.Files.Single(f=>Name(f)=="NpcParam.param").Bytes);
   var maps=new Dictionary<string,object>();var events=new Dictionary<string,object>();var inputs=new Dictionary<string,string>();
   // Native common functions remain available where MMV supplies only a map event.
-  foreach(var directory in new[]{Path.Combine(root,"assets/original"),Path.Combine(mmv,"mod"),Path.Combine(overlay,"mod")}){
+  var original=Path.Combine(root,"assets/original");
+  var layers=standaloneReaver?new[]{original}:new[]{original,Path.Combine(mmv,"mod"),Path.Combine(overlay,"mod")};
+  foreach(var directory in layers){
    var eventDir=Path.Combine(directory,"event");
    if(Directory.Exists(eventDir))foreach(var p in Directory.GetFiles(eventDir,"*.emevd.dcx").Order()){
     var name=Path.GetFileName(p).Replace(".emevd.dcx","");inputs[p]=Hash(p);
     events[name]=EMEVD.Read(p).Events.Select(e=>new{e.ID,e.Parameters,instructions=e.Instructions.Select(i=>new{i.Bank,i.ID,hex=Convert.ToHexString(i.ArgData)})}).ToArray();
    }
   }
-  foreach(var directory in new[]{Path.Combine(mmv,"mod/map/mapstudio"),Path.Combine(overlay,"mod/map/mapstudio")})
-  foreach(var p in Directory.Exists(directory)?Directory.GetFiles(directory,"*.msb.dcx").Order():Enumerable.Empty<string>()){
-   inputs[p]=Hash(p);var name=Path.GetFileName(p).Replace(".msb.dcx","");
-   maps[name]=MSB_NR.Read(p).Parts.Enemies.Select(e=>new{e.Name,e.ModelName,e.NpcParamId,e.NpcThinkParamId,entity=e.EntityData.EntityID,groups=e.EntityData.EntityGroupIDs}).ToArray();
+  var originalMaps=new Dictionary<string,object>();
+  foreach(var layer in layers){
+   var directory=Path.Combine(layer,"map/mapstudio");
+   foreach(var p in Directory.Exists(directory)?Directory.GetFiles(directory,"*.msb.dcx").Order():Enumerable.Empty<string>()){
+    inputs[p]=Hash(p);var name=Path.GetFileName(p).Replace(".msb.dcx","");
+    var target=layer==original?originalMaps:maps;
+    target[name]=MSB_NR.Read(p).Parts.Enemies.Select(e=>new{e.Name,e.ModelName,e.NpcParamId,e.NpcThinkParamId,entity=e.EntityData.EntityID,groups=e.EntityData.EntityGroupIDs}).ToArray();
+   }
   }
   if(hash!=Hash(regulation)||inputs.Any(p=>Hash(p.Key)!=p.Value))throw new InvalidDataException("Spirit inputs changed during export");
-  var output=Path.Combine(root,"work/compat/mmv/spirit-parameters.json");
-  File.WriteAllText(output,JsonSerializer.Serialize(new{overlay,mmv,regulationSha256=hash,inputs,maps,events,rows=npc.Rows.Select(r=>new{r.ID,r.Name,fields=r.Cells.Where(c=>c.Value is not byte[]).ToDictionary(c=>c.Def.InternalName,c=>c.Value)})}));
-  Console.WriteLine($"Exported {npc.Rows.Count} NPC rows, {maps.Count} MMV maps and {events.Count} event files");
+  var output=Path.Combine(root,standaloneReaver?"work/reaver-standalone-inputs.json":"work/compat/mmv/spirit-parameters.json");
+  Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+  File.WriteAllText(output,JsonSerializer.Serialize(new{overlay,mmv,regulationSha256=hash,inputs,originalMaps,maps,events,rows=npc.Rows.Select(r=>new{r.ID,r.Name,fields=r.Cells.Where(c=>c.Value is not byte[]).ToDictionary(c=>c.Def.InternalName,c=>c.Value)})}));
+  Console.WriteLine($"Exported {npc.Rows.Count} NPC rows, {originalMaps.Count} original and {maps.Count} overlay maps and {events.Count} event files");
  }
  public static void Apply(string overlay,string planPath,Func<string,Memory<byte>,PARAM> parse){
   using var plan=JsonDocument.Parse(File.ReadAllText(planPath));var p=plan.RootElement;

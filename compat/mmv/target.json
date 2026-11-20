@@ -1,9 +1,8 @@
 {
   "schemaVersion": 1,
-  "name": "NRHex-MMV",
+  "name": "Mayhem Augments MMV",
   "sharedResources": "dist/mod",
   "output": "dist/mmv",
-  "communityOutput": null,
   "originalSfxSha256": "0dfd146f6cf246f8a9c2763730fab2941ba2943e9644a460c7854cb4aa436269",
   "runtimeFeatures": [
     "cage-demand",
@@ -13,7 +12,7 @@
   "status": "buildable-awaiting-game-test",
   "loadingModel": {
     "base": "existing MMV package, read-only external dependency",
-    "overlay": "independent NRHex-MMV package with merged overlapping resources",
+    "overlay": "independent Mayhem Augments MMV package with merged overlapping resources",
     "mmvDirectoryWrites": false,
     "preserveMmvGameplay": true
   },
