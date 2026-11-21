@@ -51,11 +51,25 @@ NRMA 从 NRHex 的 `c83f552` 迁移。Git 保存源码、配置、原生输入�
 
 默认仅更新 dist 的四份中英文消息容器。`-Check` 只检查当前包是否匹配文案源；`-NoInstall` 只生成并验证暂存结果。安装前备份，回读失败会恢复；不重建 DLL、参数、地图或动作。完整构建也读取相同文案源。
 
+## 从测试版打包发行
+
+开始下一轮测试前，可以在现有构建命令后加 `-NextPatch`。如果当前版本已经在默认的 `releases/` 中发行过，它会同步递增 Cargo.toml 和 Cargo.lock 的补丁号。一个发行周期只在开始时准备一次版本号，之后两种目标都沿用该版本。自定义输出目录或显式指定版本时，可在测试前直接设定两份 Cargo 文件的版本。
+
+```powershell
+./build.ps1 -Variant MMV -NextPatch -OriginalSfx $env:NRHEX_ORIGINAL_SFX
+# 游戏内验收后
+./build-release.ps1 -Variant MMV
+```
+
+成功安装的测试构建会把源码、资源输入与 DLL、资源包的 SHA-256 记录到 `work/build/tested-<variant>.json`。独立版 DLL 单项构建以当前已生成的资源为输入；修改游戏参数、动作等生成逻辑后应先更新对应资源再测试。审计、只暂存和跳过安装的构建不会登记为新的已安装版本。
+
+发行入口核对实际文件内容。测试后提交相同源码可以直接打包；运行时代码、共享资源或文案有变化时，会重新构建相应目标。没有可用构建记录时会先构建。MMV 需要重建时可传 `-OriginalSfx`，也可沿用上次记录的原版特效文件路径。新构建的游戏内表现仍需实测。
+
 ## 纯净发行版
 
-使用 `./build-release.ps1`，复用当前 `dist/mod` 的独立版资源并检查最新中英文文案，复用同一份本机 DLL。默认输出 `releases/Mayhem Augments-<版本>/` 和同名 ZIP；可用 `-OutputDirectory` 指定其他输出父目录，已有同名发行包时停止以避免覆盖。脚本显式选择独立版条件表，不继承 MMV 构建环境。
+`./build-release.ps1` 默认输出 `releases/Mayhem Augments-<版本>/` 和同名 ZIP。可用 `-OutputDirectory` 指定其他父目录，已有同名发行包时会在构建前停止。
 
-发行包包含 `mod/`、`natives/` 和 `Mayhem Augments.me3`；运行时文件名为 `MayhemAugments.dll` 和 `MayhemAugments.ini`。ME3 配置仅加载本 Mod，不写入 `start_online`、`disable_arxan` 或开头注释，不复制个人配置、辅助 Mod、MMV、README 或构建报告。打包后验证 ME3 配置和 ZIP 全部文件哈希；报告保存在 `.work/release/`。这一步不重新生成游戏资源，资源改动须先运行对应独立版构建。
+发行包包含 `mod/`、`natives/` 和 `Mayhem Augments.me3`；运行时文件名为 `MayhemAugments.dll` 和 `MayhemAugments.ini`。ME3 配置仅加载本 Mod，不写入 `start_online`、`disable_arxan` 或开头注释，不复制个人配置、辅助 Mod、MMV、README 或构建报告。打包后验证 ME3 配置和 ZIP 全部文件哈希；报告保存在 `.work/release/`。输入和产物一致时直接复用已安装的测试版。
 
 ## MMV 发行版
 

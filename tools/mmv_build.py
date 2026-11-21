@@ -156,6 +156,9 @@ def main(argv=None) -> int:
         validate_lock(json.loads(LOCK.read_text(encoding='utf8')), current)
         before = shared_inputs()
         original_assets()
+        if args.original_sfx and not (args.audit_only or args.stage_only or args.build_only):
+            import tested_build
+            test_inputs = tested_build.snapshot(ROOT, "mmv")
         report['sharedResources'] = before
         report['nrhexVersion'] = tomllib.loads((ROOT / 'Cargo.toml').read_text())['package']['version']
         try:
@@ -362,6 +365,9 @@ def main(argv=None) -> int:
                       parryDataSha256=digest(REPORTS / 'staged/parry_data.rs'),
                       soulCriticalDataSha256=digest(REPORTS / 'staged/soul_critical_data.rs'),
                       nativeCoexistenceVerified=False, releaseReady=False)
+        if not args.build_only:
+            tested_build.record(ROOT, "mmv", test_inputs, report["packages"][0]["files"]["natives/MayhemAugments.dll"],
+                                sfx=report["extraOriginalSfx"], expected_files=report["packages"][0]["files"])
         print(f'Built MMV dist. Installed: {not args.build_only}. Game startup and native DLL coexistence still require testing.')
         return 0
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:

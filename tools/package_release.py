@@ -10,6 +10,7 @@ import tomllib
 import zipfile
 
 import pefile
+from tested_build import plan, read, receipt_path
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME = 'Mayhem Augments'
@@ -122,6 +123,12 @@ source = "mod"
                 assert sha(z.read(zip_prefix + name)) == sha(data), name
         assert all(sha(p.read_bytes()) == h for p, h in inputs.items()), 'Resources changed while packaging'
         assert dll_file.read_bytes() == dll
+        action, reason = plan(ROOT, args.variant)
+        if action != 'reuse':
+            raise ValueError(f'Test build changed before release: {reason}')
+        tested = read(receipt_path(ROOT, args.variant))
+        if any(sha(payload[prefix + name]) != h for name, h in tested['payload'].items()):
+            raise ValueError('Archive differs from the tested payload')
         stage.rename(folder)
         try:
             staged_zip.rename(archive)

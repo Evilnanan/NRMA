@@ -2,6 +2,7 @@ param(
     [ValidateSet('standalone','mmv')][string]$Variant = 'standalone',
     [switch]$NoInstall,
     [switch]$DllOnly,
+    [switch]$NextPatch,
     [string]$MmvRoot = $(if ($env:NRHEX_MMV) { $env:NRHEX_MMV } else { 'D:\Users\OwO\Documents\me3-profiles\MMV' }),
     [string]$OriginalSfx = $env:NRHEX_ORIGINAL_SFX,
     [switch]$AuditOnly,
@@ -10,6 +11,11 @@ param(
     [switch]$BuildOnly
 )
 $ErrorActionPreference = 'Stop'
+if ($NextPatch) {
+    if ($AuditOnly -or $RecordBaseline -or $StageOnly) { throw '-NextPatch is for a test build.' }
+    python -X utf8 (Join-Path $PSScriptRoot 'tools/tested_build.py') next-patch $Variant.ToLowerInvariant()
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot prepare the test/release version.' }
+}
 if ($Variant -eq 'mmv') {
     if ($DllOnly) { throw '-DllOnly is available for the standalone build only.' }
     Push-Location $PSScriptRoot
@@ -45,6 +51,11 @@ Push-Location $PSScriptRoot
 try {
     & python -X utf8 tools/restore_dist_resources.py
     if ($LASTEXITCODE -ne 0) { throw 'Cannot restore standalone resource inputs.' }
+    $receiptStart = Join-Path ([IO.Path]::GetTempPath()) ('ma-test-' + [guid]::NewGuid().ToString('N') + '.json')
+    if (-not $NoInstall) {
+        python -X utf8 tools/tested_build.py snapshot standalone --before $receiptStart
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot snapshot standalone build inputs.' }
+    }
     if (-not $DllOnly) {
         New-Item -ItemType Directory -Path 'dist/reports' -Force | Out-Null
         foreach ($taskFolder in @('.work/arts', '.work/hks', '.work/actions', '.work/effects', '.work/combat', '.work/rewards', '.work/defs', '.work/backstep', '.work/behavior', '.work/icons')) {
@@ -321,6 +332,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Sword automatic parameter export failed.' }
     python -X utf8 tools/build_sword_auto.py
     if ($LASTEXITCODE -ne 0) { throw 'Sword automatic balance generation failed.' }
+    if (-not $NoInstall) {
+        python -X utf8 tools/tested_build.py ready standalone --before $receiptStart
+        if ($LASTEXITCODE -ne 0) { throw 'Standalone resource inputs changed during generation.' }
+    }
     cargo test --release --lib @cargoTarget @cargoFeatures
     if ($LASTEXITCODE -ne 0) { throw 'Runtime regression checks failed.' }
     foreach ($runtimeCheck in @('verify_sword_projectile.py', 'verify_glass_cannon_native.py', 'verify_death_dance.py', 'verify_erosion.py', 'verify_potential_fission.py', 'verify_reward_template.py', 'verify_ambulance.py', 'verify_echo_cast.py', 'verify_weapon_affinity.py', 'verify_snack.py', 'verify_marking.py', 'verify_wraith.py', 'verify_metal.py', 'verify_double_dip.py', 'verify_deliberate_punch.py', 'verify_basics.py', 'verify_sniper.py', 'verify_momentum.py', 'verify_heartstealer.py', 'verify_cat_arena.py', 'verify_ultimate_awakening.py', 'verify_ultimate_unstoppable.py')) {
@@ -357,4 +372,11 @@ try {
     if ($NoInstall) { $recordArgs += '--no-install' }
     & python -X utf8 tools/record_build.py @recordArgs
     if ($LASTEXITCODE -ne 0) { throw 'Current build record failed.' }
-} finally { Pop-Location }
+    if (-not $NoInstall) {
+        python -X utf8 tools/tested_build.py record standalone --before $receiptStart --dll $compiledDll
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot record the installed standalone test build.' }
+    }
+} finally {
+    if ($receiptStart -and [IO.File]::Exists($receiptStart)) { [IO.File]::Delete($receiptStart) }
+    Pop-Location
+}
