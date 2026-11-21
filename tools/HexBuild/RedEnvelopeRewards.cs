@@ -3,6 +3,7 @@ using System.Text.Json;
 
 static partial class RedEnvelope {
  public const int FirstReceipt=95000103,RewardReset=95000106;
+ // Keep the old private lots resolvable for rewards saved by earlier versions.
  public static readonly (int Source,int Target)[] RewardLots={(6100000,95410000),(6110200,95410010)};
  public static void Rewards(Func<string,int,int,PARAM.Row> clone){
   foreach(int id in Enumerable.Range(FirstReceipt,4)){

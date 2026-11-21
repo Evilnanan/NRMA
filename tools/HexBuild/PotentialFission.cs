@@ -4,7 +4,7 @@ using System.Text.Json;
 // Generate only changed ancestors. Original weapon generators and themed/class
 // leaves remain native; no combinations of rewards or weapon effects are stored.
 static class PotentialFission {
- public const int Owner=95003200,FirstLot=98000000,FirstTable=98000000;
+ public const int Owner=95003200,FirstLot=98000000,FloorLot=98100000,FirstTable=98000000;
  static string Name(BinderFile f)=>f.Name.Replace('\\','/').Split('/').Last();
  static int N(PARAM.Row r,string f)=>Convert.ToInt32(r[f].Value);
  static void Set(PARAM.Row r,string f,object v)=>r[f].Value=Convert.ChangeType(v,r[f].Value.GetType());
@@ -78,9 +78,9 @@ static class PotentialFission {
      }
     }
    }
-   if(lowerSelector!=0)target=cursedSelector&&mode==1?Mix(id,lowerSelector):lowerSelector;
+   if(lowerSelector!=0)target=mode==2?ConvertPool(lowerSelector,0):cursedSelector&&mode==1?Mix(id,lowerSelector):lowerSelector;
    else if(high.TryGetValue(id,out int basic))target=basic;
-   else if(special.Contains(id))target=mode==0?4200100:Mix(id,4200100);
+   else if(special.Contains(id))target=mode!=1?4200100:Mix(id,4200100);
    else{
     var active=original.Where(r=>N(r,"chanceWeight")>0).ToArray();
     bool weaponLeaf=active.Length>0&&active.All(r=>N(r,"itemCategory")==6&&weapons.ContainsKey(N(r,"itemId")));
@@ -91,11 +91,11 @@ static class PotentialFission {
      if(cursed){
       Check(id>=10000000&&id%10==3,"Unrecognized cursed native weapon leaf: "+id);
       int blue=id-5001;Check(pools.Contains(blue)&&pools[blue].Any(r=>N(r,"chanceWeight")>0),"Missing themed blue cursed fallback: "+id);
-      target=mode==0?blue:Mix(id,blue);
+      target=mode==1?Mix(id,blue):blue;
      }else if(grades.Length==1&&grades[0] is 2 or 3&&id>=10000000&&id%10==grades[0]+1){
       // Pool suffix3 is purple,4 gold; stop at the native target to avoid
       // applying purple->blue a second time to a gold->purple result.
-      int lower=id-1;Check(pools.Contains(lower)&&pools[lower].Any(r=>N(r,"chanceWeight")>0),"Missing native lower-quality leaf: "+id);target=lower;
+      int lower=id-1;Check(pools.Contains(lower)&&pools[lower].Any(r=>N(r,"chanceWeight")>0),"Missing native lower-quality leaf: "+id);target=mode==2?ConvertPool(lower,0):lower;
      }
     }else{
      var copy=original.Select(r=>new PARAM.Row(r)).ToArray();bool changed=false;
@@ -119,7 +119,7 @@ static class PotentialFission {
   var result=new List<Root>();
   foreach(var root in roots){
    int a=FirstLot+result.Count*10,b=a+5;
-   foreach(var(mode,start)in new[]{(0,a),(1,b)})for(int i=0;i<root.Rows.Length;i++){
+   foreach(var(mode,start)in new[]{(0,a),(1,b),(2,FloorLot+result.Count*10)})for(int i=0;i<root.Rows.Length;i++){
     Check(usedLots.Add(start+i),"Fission loot collision");var row=new PARAM.Row(root.Rows[i]){ID=start+i};
     for(int slot=1;slot<=8;slot++)if(N(row,$"lotItemBasePoint{slot:00}")>0&&N(row,$"lotItemCategory{slot:00}")==7)Set(row,$"lotItemId{slot:00}",ConvertPool(N(row,$"lotItemId{slot:00}"),mode));
     lot.Rows.Add(row);
@@ -156,7 +156,9 @@ static class PotentialFission {
    foreach(var(actual,wanted)in new[]{(after[0],0m),(after[1],before[1]*factor),(after[2],before[2]*factor),(after[3],before[4]),(after[4],0m)})
     Check(Math.Abs(actual-wanted)<0.000000000001m,$"Downgrade probability audit failed: {r.Source}/{mode}: {actual} != {wanted}");
   }}
-  Audit=new{allRootsProbabilityMassChecked=true,conversions=cache.OrderBy(k=>k.Key.Item1).ThenBy(k=>k.Key.Item2).Select(k=>new{source=k.Key.Item1,mode=k.Key.Item2,target=k.Value}).ToArray(),specialAndCursedA=0,specialAndCursedB=0.5,goldDropsExactlyOneTier=true};
+  for(int i=0;i<result.Count;i++)
+   Check(LotMass(FloorLot+i*10).All(v=>v==0),$"Terminal blue reward pool still contains a higher tier: {result[i].Source}");
+  Audit=new{floorPoolsChecked=true,allRootsProbabilityMassChecked=true,conversions=cache.OrderBy(k=>k.Key.Item1).ThenBy(k=>k.Key.Item2).Select(k=>new{source=k.Key.Item1,mode=k.Key.Item2,target=k.Value}).ToArray(),specialAndCursedA=0,specialAndCursedB=0.5,goldDropsExactlyOneTier=true};
   Check(table.Rows.Count<65536&&lot.Rows.Count<65536,"Fission row capacity exceeded");
   table.Rows=table.Rows.OrderBy(r=>r.ID).ToList();lot.Rows=lot.Rows.OrderBy(r=>r.ID).ToList();
   Directory.CreateDirectory(Path.GetDirectoryName(metadata)!);

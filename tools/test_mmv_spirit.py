@@ -72,6 +72,23 @@ class SpiritTargetTests(unittest.TestCase):
         self.assertNotIn(51400099, bosses)  # Messmer's auxiliary serpent, despite boss flag.
         self.assertNotIn(31600020, bosses)  # Horse is not promoted by reward flags.
 
+    def test_bloodfiend_group_matches_source_without_promoting_follower_souls(self):
+        maps = self.data['maps']
+        rows = {r['ID']: r['fields'] for r in self.data['rows']}
+        source = {e['NpcParamId'] for e in maps['m46_77_00_00'] if 46775800 in e['groups']}
+        catalog = json.loads((ROOT/'compat/mmv/cage-encounters.json').read_text(encoding='utf8'))
+        encounter, = (e for e in catalog['encounters'] if e['target'] == 46775800)
+        copies = {95300200 + m['index']: m['npc'] for m in encounter['members']}
+        for block in (50, 60, 70, 80):
+            target = (4600 + block) * 10000 + 6000 + encounter['index']
+            group = {e['NpcParamId'] for e in maps[f'm46_{block}_00_00'] if target in e['groups']}
+            self.assertEqual({copies[npc] for npc in group}, source)
+            for npc in group:
+                self.assertEqual(rows[npc]['excludeGroupRewardCheck'], 0)
+                self.assertEqual(rows[npc]['rewardItemLot_2'], -1)
+        bosses = {p['npc'] for p in self.report['bossBindings']}
+        self.assertEqual(set(copies) & bosses, {95300284})
+
     def test_reaver_mmv_gaol_copies_follow_their_sources(self):
         line = next(line for line in self.output.splitlines() if line.startswith('pub const INDIVIDUAL_BOSSES'))
         bosses = {int(npc) for npc in line.split('= &[', 1)[1].removesuffix('];').split(',')}

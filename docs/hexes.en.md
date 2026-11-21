@@ -157,7 +157,7 @@ Reduces attack power by 30%. Attacks build up the status ailment to which the ta
 <!-- hex:95003200 -->
 ## Potential Fission
 
-Splits each of the next three Dormant Powers obtained into two of lower quality.
+Dormant Powers you obtain have a 75% chance to split into two of lower quality.
 
 <!-- hex:95003400 -->
 ## Ambulance

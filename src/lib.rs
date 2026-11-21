@@ -393,7 +393,7 @@ const NEW_392810_PATTERN:&str="48 89 5C 24 10 48 89 74 24 18 55 57 41 56 48 8D 6
 const NEW_66C7D0_PATTERN:&str="40 53 48 83 EC 20 48 8B 81 A0 05 00 00 48 85 C0 75 05 E8 D9 00 BA FF 8B 58 08 E8 D1 19 B9 FF 84";
 
 const NEAR_DEATH_STATE_PATTERN:&str="80 B9 10 07 00 00 01 0F 94 C0 C3";
- fn signatures()->[(&'static str,u32);249] {
+ fn signatures()->[(&'static str,u32);253] {
  [(impact::REBUILD_PATTERN,impact::REBUILD_RVA as u32),(ram_damage::PATTERN,ram_damage::RVA as u32),
   (night_blessing::COLLECT_PATTERN,night_blessing::COLLECT_RVA as u32),
   (night_blessing::RATE_PATTERN,night_blessing::RATE_RVA as u32),
@@ -413,6 +413,8 @@ const NEAR_DEATH_STATE_PATTERN:&str="80 B9 10 07 00 00 01 0F 94 C0 C3";
   (sword_projectile::MODE_PATTERN,sword_projectile::MODE_RVA as u32),
   (sword_projectile::PARAM_PATTERN,sword_projectile::PARAM_RVA as u32),
   (sword_projectile::MOTION_PATTERN,sword_projectile::MOTION_RVA as u32),
+  (potential_fission::PICKUP_PATTERN,potential_fission::PICKUP_RVA as u32),(potential_fission::REMOVE_GROUP_PATTERN,potential_fission::REMOVE_GROUP_RVA as u32),
+  (potential_fission::ENCODE_PATTERN,potential_fission::ENCODE_RVA as u32),(potential_fission::DECODE_PATTERN,potential_fission::DECODE_RVA as u32),
   (echo_cast::FACTORY_PATTERN,echo_cast::FACTORY_RVA as u32),(echo_cast::TARGET_COPY_PATTERN,echo_cast::TARGET_COPY_RVA as u32),(echo_cast::RELEASE_PATTERN,echo_cast::RELEASE_RVA as u32),(echo_cast::TARGET_VALID_PATTERN,echo_cast::TARGET_VALID_RVA as u32),(light_footed::TAE_PATTERN,light_footed::TAE_RVA as u32),(ambulance::ENV_PATTERN,ambulance::ENV_RVA as u32),(ambulance::NUMBER_PATTERN,ambulance::NUMBER_RVA as u32),(ambulance::COST_PATTERN,ambulance::COST_RVA as u32),(ambulance::HIT_PATTERN,ambulance::HIT_RVA as u32),(ambulance::MODE_PATTERN,ambulance::MODE_RVA as u32),(ambulance::COMMON_PATTERN,ambulance::COMMON_RVA as u32),(ambulance::FORMULA_PATTERN,ambulance::FORMULA_RVA as u32),(potential_fission::LOOKUP_PATTERN,potential_fission::LOOKUP_RVA as u32),(potential_fission::CREATE_PATTERN,potential_fission::CREATE_RVA as u32),(potential_fission::GROUP_PATTERN,potential_fission::GROUP_RVA as u32),(death_dance::DEBIT_PATTERN,death_dance::DEBIT_RVA as u32),(erosion::PATTERN,erosion::RVA as u32),(erosion::IMMUNE_PATTERN,erosion::IMMUNE_RVA as u32),(death_dance::PATTERN,death_dance::RVA as u32),(death_dance::SET_PATTERN,death_dance::SET_RVA as u32),(death_dance::FINISH_PATTERN,death_dance::FINISH_RVA as u32),(sword_regain::DESCRIPTOR_PATTERN,sword_regain::DESCRIPTOR_RVA as u32),(sword_regain::RATE_PATTERN,sword_regain::RATE_RVA as u32),(sword_regain::DIRECT_PATTERN,sword_regain::DIRECT_RVA as u32),(sword_regain::RECEIVED_PATTERN,sword_regain::RECEIVED_RVA as u32),(sword_hit_rules::PATTERN,sword_hit_rules::RVA as u32),(slingshot_runtime::PATTERN,slingshot_runtime::RVA as u32),(slingshot_runtime::HORIZONTAL_PATTERN,slingshot_runtime::HORIZONTAL_RVA as u32),(devils_gaze_hit::PATTERN,devils_gaze_hit::RVA as u32),(devils_gaze_hit::LOOKUP_PATTERN,devils_gaze_hit::LOOKUP_RVA as u32),(devils_gaze_audio::REQUEST_PATTERN,devils_gaze_audio::REQUEST_RVA as u32),(devils_gaze_runtime::EMIT_PATTERN,devils_gaze_runtime::EMIT_RVA as u32),(devils_gaze_runtime::DEPTH_PATTERN,devils_gaze_runtime::DEPTH_RVA as u32),(STAMINA_ADD_PATTERN,STAMINA_ADD_RVA as u32),(STAMINA_SET_PATTERN,0x427f00),(WORLD_PATTERN,0x3e0ace),(SPAWN_PATTERN,SPAWN_RVA as u32),
   (snack::PRICE_PATTERN,snack::PRICE_RVA as u32),(snack::SPEND_PATTERN,snack::SPEND_RVA as u32),(snack::BUY_A_PATTERN,snack::BUY_A_RVA as u32),(snack::BUY_B_PATTERN,snack::BUY_B_RVA as u32),(snack::ITEM_A_PATTERN,snack::ITEM_A_RVA as u32),(snack::ITEM_B_PATTERN,snack::ITEM_B_RVA as u32),(snack::RARITY_PATTERN,snack::RARITY_RVA as u32),
   (metal::CONSUME_PATTERN,metal::CONSUME_RVA as u32),(metal::QUANTITY_PATTERN,0x1f5ca0),
@@ -607,6 +609,9 @@ fn extra_hook_targets()->Vec<(usize,*const u8,&'static AtomicPtr<u8>)>{
 
 
 
+   (potential_fission::PICKUP_RVA,potential_fission::pickup as *const u8,&potential_fission::PICKUP_ORIGINAL),
+   (potential_fission::ENCODE_RVA,potential_fission::encode as *const u8,&potential_fission::ENCODE_ORIGINAL),
+   (potential_fission::DECODE_RVA,potential_fission::decode as *const u8,&potential_fission::DECODE_ORIGINAL),
    (potential_fission::CREATE_RVA,potential_fission::create as *const u8,&potential_fission::CREATE_ORIGINAL),
    (potential_fission::GROUP_RVA,potential_fission::group as *const u8,&potential_fission::GROUP_ORIGINAL),
    (erosion::RVA,erosion::detour as *const u8,&erosion::ORIGINAL),
@@ -2217,8 +2222,8 @@ unsafe fn unclaimed_hex_ball(base:usize)->bool {
   let kind=ptr::read_unaligned((node+0x78) as *const u32);
   let owner=ptr::read_unaligned((node+0xca) as *const u16);
   let lot=read_i32(node+0xd8);
-  // All custom personal balls share one queue; native world rewards do not.
-  if kind&15==2 && owner&0x40!=0 && (red_envelope::pending_for(lot,owner,slot as u8) || snack::pending_for(lot,owner,slot as u8) ||
+  // Only Hex and Snack choices block the next personal Hex.
+  if kind&15==2 && owner&0x40!=0 && (snack::pending_for(lot,owner,slot as u8) ||
      (hex_pool::is_template_lot(lot)
      && reward_choices::is_hex_good(ptr::read_unaligned((node+0x28) as *const u32)))) {return true;}
   node=read_ptr(node);

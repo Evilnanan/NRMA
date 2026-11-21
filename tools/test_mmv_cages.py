@@ -50,6 +50,16 @@ def select(report, draw, cooling=False, client=False):
     raise AssertionError('Selector failed to yield')
 
 
+class CageCatalogTests(unittest.TestCase):
+    def test_bloodfiend_victory_requires_both_followers(self):
+        catalog = json.loads((ROOT/'compat/mmv/cage-encounters.json').read_text(encoding='utf8'))
+        encounter, = (e for e in catalog['encounters'] if e['target'] == 46775800)
+        self.assertEqual({m['entity'] for m in encounter['members'] if m['combat']},
+                         {46770800, 46770801, 46770802})
+        self.assertEqual({m['entity'] for m in encounter['members'] if m.get('bossSoul', m['combat'])},
+                         {46770800})
+
+
 @unittest.skipUnless(REPORT.exists(), 'build MMV cage stage first')
 class CageAdapterTests(unittest.TestCase):
     @classmethod
@@ -106,7 +116,7 @@ class CageAdapterTests(unittest.TestCase):
             bosses={p['npc'] for p in json.loads(spirit.read_text(encoding='utf8'))['bossBindings']}
             for e in self.catalog['encounters']:
                 for m in e['members']:
-                    self.assertEqual(95300200+m['index'] in bosses,m['combat'])
+                    self.assertEqual(95300200+m['index'] in bosses,m.get('bossSoul',m['combat']))
 
     def test_reward_group_and_demand_npc_catalog_match_resource_ids(self):
         import re

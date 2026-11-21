@@ -93,6 +93,14 @@ static class MmvCages {
    for(uint start=p+7000;start+count<=p+8000;start++)if(Enumerable.Range(0,count).All(i=>!occupied.Contains(start+(uint)i))){draft=start;break;}
    Check(draft!=0,"No contiguous MMV cage lottery storage");foreach(uint f in Enumerable.Range(0,count).Select(i=>draft+(uint)i))occupied.Add(f);
    uint Allocate(){for(uint f=p+7000;f<p+8000;f++)if(occupied.Add(f))return f;throw new InvalidDataException("MMV cage flag bank exhausted");}
+   // These two followers gained death tracking after release. Reserve from the
+   // other end of the bank and append their watchers so existing IDs stay stable.
+   var newDeathFlags=new Dictionary<int,uint>();
+   foreach(int index in new[]{85,86}){
+    uint flag=Enumerable.Range(7000,1000).Reverse().Select(offset=>p+(uint)offset).First(occupied.Add);
+    newDeathFlags.Add(index,flag);
+   }
+   var newDeathEvents=new List<(EMEVD.Event watcher,Dictionary<uint,uint> remap)>();
    // There is exactly one active encounter per gaol. Mutation decisions are
    // cleared before the next choice; delayed cleanup never touches them.
    uint red=Allocate(),decided=Allocate();
@@ -110,7 +118,8 @@ static class MmvCages {
     var remap=new Dictionary<uint,uint>{{p+7537,choice},{p+7587,cool},{p+7687,red},{p+7737,decided},{p+7887,reward},{p+5937,target}};
     var parts=new Dictionary<string,MSB_NR.Part.Enemy>();
     foreach(var (m,i) in e.members.Select((m,i)=>(m,i))){
-     uint actor=p+9200+(uint)m.index,generator=actor-5200,regionId=p+4200+(uint)m.index,shown=Allocate(),dead=m.combat?Allocate():0;
+     uint actor=p+9200+(uint)m.index,generator=actor-5200,regionId=p+4200+(uint)m.index,shown=Allocate();
+     uint dead=newDeathFlags.TryGetValue(m.index,out var newFlag)?newFlag:m.combat?Allocate():0;
      remap[p+9037+(uint)i]=actor;remap[p+3837+(uint)i]=generator;remap[p+7787+(uint)i]=shown;if(m.combat)remap[p+7937+(uint)i]=dead;
      var enemy=(MSB_NR.Part.Enemy)sources[e.map].Parts.Enemies.Single(v=>v.Name==m.sourceName).DeepCopy();
      // Keep source relative placement for group members, centered and rotated
@@ -138,11 +147,16 @@ static class MmvCages {
     Check(!map.Events.GetEntries().OfType<MSB_NR.Event.TeamFight>().Any(v=>v.TargetEntityGroupID==target),"MMV reward group collision");
     foreach(int lot in new[]{team.FirstItemLot,team.SecondItemLot,team.UnkItemLot}.Where(x=>x>0)){var loot=tables["ItemLotParam_enemy"].Rows.Where(r=>r.ID>=lot&&r.ID<lot+10).ToArray();Check(loot.Length==3&&loot.All(r=>N(r,"getItemFlagId")==0),"Cage reward must be repeatable two-weapon/body ball");}
     map.Events.Add(team);addedEntries.Add((map.Events,team));
-    foreach(var m in fakeMembers){
+    foreach(var (m,i) in fakeMembers.Select((member,i)=>(member,i))){
      var birth=CageEncounters.Birth(p,fake,m);
      // Seath's detached tail appears only after the native part-break test.
      if(e.auxiliaryEvent.HasValue&&!m.combat)foreach(var ins in birth.Instructions.Where(i=>i.Bank==2004&&i.ID==5&&BitConverter.ToUInt32(i.ArgData)==p+9000+(uint)m.index))ins.ArgData[4]=0;
-     Event(birth,remap);if(m.combat)Event(CageEncounters.Death(p,fake,m),remap);
+     Event(birth,remap);
+     if(m.combat){
+      var watcher=CageEncounters.Death(p,fake,m);
+      if(newDeathFlags.ContainsKey(e.members[i].index))newDeathEvents.Add((watcher,remap));
+      else Event(watcher,remap);
+     }
     }
     if(e.auxiliaryEvent.HasValue){
      Check(e.auxiliaryEvent==1038102220&&e.members.Length==2,"Unreviewed auxiliary boss lifecycle");
@@ -166,6 +180,7 @@ static class MmvCages {
     Event(CageMusic.Event(p,new(37,e.name,e.map,e.target,e.bgm,e.eventSha256),new(50,84,[fake])),remap);
     encounterReports.Add(new{e.index,e.name,choice,cooling=cool,reward,target,e.bgm,e.healthBarName});
    }
+   foreach(var (watcher,remap) in newDeathEvents)Event(watcher,remap);
    var selector=Selector(p,draft,choices.ToArray(),cooling.ToArray());events.Events[events.Events.FindIndex(e=>e.ID==p+9700)]=selector;
    map.Write(mapPath);events.Write(eventPath);var checkMap=MSB_NR.Read(mapPath);var checkEvents=EMEVD.Read(eventPath);
    Check(DCX.Decompress(checkMap.Write()).Span.SequenceEqual(DCX.Decompress(mapPath).Span),"MMV cage map readback");

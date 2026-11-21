@@ -140,6 +140,11 @@ def generate(data):
         model = cage.get(npc, next(iter(found)) if len(found) == 1 else npc // 10000 % 10000)
         model_pairs.append((private, model))
     proof = boss_bindings(data['maps'], data['events'])
+    # Some gaol followers contribute to a shared HP bar without granting a boss soul.
+    catalog = json.loads((ROOT / 'compat/mmv/cage-encounters.json').read_text(encoding='utf8'))
+    excluded_clones = {95300200 + m['index'] for e in catalog['encounters'] for m in e['members']
+                       if m.get('bossSoul') is False}
+    proof = [p for p in proof if p['npc'] not in excluded_clones]
     supported = {npc for npc, _ in mapping}
     bosses = sorted({p['npc'] for p in proof} & supported)
     new = mapping[len(native):]

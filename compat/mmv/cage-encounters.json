@@ -1406,7 +1406,8 @@
           "npc": 50802002,
           "think": 50802005,
           "model": "c5080",
-          "combat": false
+          "combat": true,
+          "bossSoul": false
         },
         {
           "index": 86,
@@ -1415,7 +1416,8 @@
           "npc": 50801002,
           "think": 50801005,
           "model": "c5080",
-          "combat": false
+          "combat": true,
+          "bossSoul": false
         }
       ],
       "mapSha256": "31d723615e4b120069157f75b6ddda4ecd256e6839054c586c5abe929bda502b",

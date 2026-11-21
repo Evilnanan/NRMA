@@ -45,7 +45,7 @@ try:
     struct.pack_into('<I',descriptor,0x58,0x12 if network else 2)
     struct.pack_into('<I',descriptor,0x5c,0x40012345|(slot<<27))
     struct.pack_into('<H',descriptor,0xaa,0x40|(slot<<7))
-    struct.pack_into('<i',descriptor,0xb8,95410000)
+    struct.pack_into('<i',descriptor,0xb8,6100000)
     before=descriptor.raw;calls.clear();dispatch(0x123400,descriptor)
     expected=['forward'] if network and mode==6 else ['create','broadcast'] if network and mode==3 else ['create']
     assert [entry[0] for entry in calls]==expected
