@@ -66,9 +66,10 @@ impl State{
  }
 }
 fn roll_split()->bool{
+ let splits=|n:usize|n<2;
  #[cfg(test)]
- if let Some(n)=native_tests::next_roll(){return n<3;}
- crate::random_index(4).is_some_and(|n|n<3)
+ if let Some(n)=native_tests::next_roll(){return splits(n);}
+ crate::random_index(4).is_some_and(splits)
 }
 static STATE:Mutex<State>=Mutex::new(State::new());
 #[derive(Clone,Copy,Default)]
@@ -333,11 +334,11 @@ pub unsafe fn update(player:usize,base:usize,dt:f32){
  #[test]fn eligible_groups_roll_once_and_misses_stay_original(){
   let mut state=State::new();
   for n in 1..=12{
-   let j=job(n);let split=n%4!=0;
+   let j=job(n);let split=n%2==0;
    assert_eq!(state.observe(j,true,||split),split);
    assert_eq!(state.observe(j,true,||panic!("duplicate reroll")),split);
   }
-  assert_eq!(state.queue.len(),9);
+  assert_eq!(state.queue.len(),6);
   let old=job(13);assert!(!state.observe(old,false,||panic!("old group roll")));
   assert!(!state.observe(old,true,||panic!("old group reroll")));
  }

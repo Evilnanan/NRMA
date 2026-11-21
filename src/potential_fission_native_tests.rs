@@ -231,7 +231,7 @@ fn compiled_fission_routes_online_draws_and_native_independent_groups(){unsafe{
  }
  // Real native flight and grouping for every generation. Rolls are independent
  // even when the two siblings share a lot and both land on the same update.
- for (tier,rolls,expected) in [(1,vec![0],2),(2,vec![0,0,3],3),(2,vec![0,3,0],3),(2,vec![0,0,0],4),(3,vec![0;7],8),(2,vec![3],1)]{
+ for (tier,rolls,expected) in [(1,vec![0],2),(2,vec![1,1,2],3),(2,vec![0,2,1],3),(2,vec![0,0,0],4),(3,vec![0;7],8),(2,vec![2],1),(2,vec![3],1)]{
   data[2]=1;*STATE.lock().unwrap()=State::new();NODES.with(|n|n.borrow_mut().clear());ptr::write_unaligned((items+0x58)as*mut usize,0);
   ROLLS.with(|r|*r.borrow_mut()=rolls.into());
   for index in 0..count{
