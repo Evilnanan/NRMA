@@ -58,6 +58,7 @@ mod soul_immunity;
 mod soul_target;
 mod soul_impact;
 mod onyx_mastery;
+mod flowing_swordsman;
 mod light_footed;
 mod glass_cannon;
 mod parry;
@@ -65,6 +66,8 @@ mod parry_turn;
 mod night_blessing;
 mod heartstealer;
 mod cold_juice;
+mod phantom_combo;
+mod phantom_combo_points;
 mod ultimate_awakening;
 mod ultimate_unstoppable;
 mod ultimate_challenge;
@@ -393,8 +396,9 @@ const NEW_392810_PATTERN:&str="48 89 5C 24 10 48 89 74 24 18 55 57 41 56 48 8D 6
 const NEW_66C7D0_PATTERN:&str="40 53 48 83 EC 20 48 8B 81 A0 05 00 00 48 85 C0 75 05 E8 D9 00 BA FF 8B 58 08 E8 D1 19 B9 FF 84";
 
 const NEAR_DEATH_STATE_PATTERN:&str="80 B9 10 07 00 00 01 0F 94 C0 C3";
- fn signatures()->[(&'static str,u32);253] {
- [(impact::REBUILD_PATTERN,impact::REBUILD_RVA as u32),(ram_damage::PATTERN,ram_damage::RVA as u32),
+ fn signatures()->[(&'static str,u32);259] {
+ [(phantom_combo::visual::MATERIAL_PATTERN,phantom_combo::visual::MATERIAL_RVA as u32),(phantom_combo_points::SOURCE_PATTERN,phantom_combo_points::SOURCE_RVA as u32),(phantom_combo::visual::TICK_PATTERN,phantom_combo::visual::TICK_RVA as u32),(phantom_combo_points::DISPATCH_PATTERN,phantom_combo_points::DISPATCH_RVA as u32),(phantom_combo_points::CHECK_PATTERN,phantom_combo_points::CHECK_RVA as u32),
+  (impact::REBUILD_PATTERN,impact::REBUILD_RVA as u32),(ram_damage::PATTERN,ram_damage::RVA as u32),
   (night_blessing::COLLECT_PATTERN,night_blessing::COLLECT_RVA as u32),
   (night_blessing::RATE_PATTERN,night_blessing::RATE_RVA as u32),
   (night_blessing::POINT_PATTERN,night_blessing::POINT_RVA as u32),
@@ -459,7 +463,7 @@ const NEAR_DEATH_STATE_PATTERN:&str="80 B9 10 07 00 00 01 0F 94 C0 C3";
   (spirit_runtime::KILL_PATTERN,spirit_runtime::KILL_RVA as u32),
   (essence_reaver::SEND_PATTERN,essence_reaver::SEND_RVA as u32),
   (spirit_runtime::RECEIVE_PATTERN,spirit_runtime::RECEIVE_RVA as u32),
-  (STATUS_SORT_PATTERN,STATUS_SORT_RVA as u32),(HUD_SORT_PATTERN,HUD_SORT_RVA as u32),(SPEED_PATTERN,SPEED_RVA as u32),(HIT_BUILD_PATTERN,HIT_BUILD_RVA as u32),(MAGIC_ANIM_PATTERN,0x456870),
+  (STATUS_SORT_PATTERN,STATUS_SORT_RVA as u32),(HUD_SORT_PATTERN,HUD_SORT_RVA as u32),(SPEED_PATTERN,SPEED_RVA as u32),(flowing_swordsman::STEP_PATTERN,flowing_swordsman::STEP_RVA as u32),(HIT_BUILD_PATTERN,HIT_BUILD_RVA as u32),(MAGIC_ANIM_PATTERN,0x456870),
   (ATTACK_RATES_PATTERN,ATTACK_RATES_RVA as u32),(EFFECT_FILTER_PATTERN,EFFECT_FILTER_RVA as u32),
   (ability_damage::BASE_PATTERN,ability_damage::BASE_RVA as u32),
   (FALL_HEIGHT_PATTERN,FALL_HEIGHT_RVA as u32),
@@ -569,6 +573,11 @@ pub unsafe extern "system" fn DllMain(h:*mut c_void,reason:u32,_:*mut c_void)->i
 }
 fn extra_hook_targets()->Vec<(usize,*const u8,&'static AtomicPtr<u8>)>{
  vec![
+   (phantom_combo_points::SOURCE_RVA,phantom_combo_points::source as*const u8,&phantom_combo_points::SOURCE),
+   (phantom_combo::visual::MATERIAL_RVA,phantom_combo::visual::replay_material as*const u8,&phantom_combo::visual::MATERIAL),
+   (phantom_combo::visual::TICK_RVA,phantom_combo::visual::on_tick as*const u8,&phantom_combo::visual::TICK),
+   (phantom_combo_points::DISPATCH_RVA,phantom_combo_points::dispatch as*const u8,&phantom_combo_points::DISPATCH),
+   (phantom_combo_points::CHECK_RVA,phantom_combo_points::check as*const u8,&phantom_combo_points::CHECK),
    (ram_damage::RVA,ram_damage::detour as*const u8,&ram_damage::ORIGINAL),
    (night_blessing::COLLECT_RVA,night_blessing::collect as*const u8,&night_blessing::COLLECT_ORIGINAL),
    (night_blessing::RATE_RVA,night_blessing::rate as*const u8,&night_blessing::RATE_ORIGINAL),
@@ -717,6 +726,9 @@ unsafe extern "system" fn worker(_:*mut c_void)->u32 {
   CAT_LANDING.set(Mutex::new(cat_jump::Landing::default())).map_err(|_|"Cat landing already initialized")?;
   LEVEL_DELIVERY.set(Mutex::new(level_rewards::Delivery::default())).map_err(|_|"Level delivery already initialized")?;
   REWARD_RECOVERY.set(Mutex::new(reward_recovery::Recovery::default())).map_err(|_|"Reward recovery already initialized")?;
+  let charge_target=base.add(flowing_swordsman::STEP_RVA) as *mut u8;
+  let charge_prepared=hook::prepare(charge_target,flowing_swordsman::graph_step as *const u8,10)?;
+  flowing_swordsman::STEP_ORIG.store(charge_prepared.trampoline,Ordering::Release);
   let speed_target=base.add(SPEED_RVA) as *mut u8;
   let speed_prepared=hook::prepare(speed_target,speed_detour as *const u8,6)?;
   if speed_prepared.stolen!=5{return Err("Speed getter must steal exactly its five-byte MOVSS".into());}
@@ -822,6 +834,7 @@ unsafe extern "system" fn worker(_:*mut c_void)->u32 {
   ARTS_BEHAVIOR_ORIG.store(arts_behavior_prepared.trampoline,Ordering::Release);
   let mut patches:Vec<(*mut u8,&[u8])>=vec![
    (speed_target,&speed_prepared.patch),
+   (charge_target,&charge_prepared.patch),
    (apply_target,&apply_prepared.patch),
    (sort_target,&sort_prepared.patch),
    (hud_sort_target,&hud_sort_prepared.patch),
@@ -1700,12 +1713,14 @@ unsafe extern "system" fn action_request_detour(input:usize,mode:i32,action:i32)
 unsafe extern "system" fn effect_detour(player:usize,mut effect:i32,source:usize,a4:usize,a5:usize,a6:u8,a7:u8,a8:u8,a9:u8,a10:u8,a11:i32)->u8 {
  let original:ApplyEffect=std::mem::transmute(APPLY_ORIG.load(Ordering::Acquire));
  let base=BASE.load(Ordering::Acquire);
+ if ACTIVE.load(Ordering::Acquire)&&flowing_swordsman::decay_pulse(player,effect){return 1;}
  if ACTIVE.load(Ordering::Acquire)&&marking::pulse(player,effect,base){return 1;}
  if ACTIVE.load(Ordering::Acquire){effect=basics::route_effect(player,effect,base);}
  if ACTIVE.load(Ordering::Acquire)&&slingshot_runtime::pulse(player,effect,base){return 1;}
  if ACTIVE.load(Ordering::Acquire)&&heartstealer::pulse(player,effect,base){return 1;}
  if ACTIVE.load(Ordering::Acquire)&&essence_reaver::pulse(player,effect,base){return 1;}
  if ACTIVE.load(Ordering::Acquire)&&ominous_pact::pulse(player,effect,base){return 1;}
+ if ACTIVE.load(Ordering::Acquire)&&phantom_combo::trigger(player,effect,base){return 1;}
  if ACTIVE.load(Ordering::Acquire)&&momentum::pulse(player,effect,base){return 1;}
  if ACTIVE.load(Ordering::Acquire)&&effect==spirit::NATIVE_DRAIN&&npc_id(player,base).is_some_and(spirit::is_private_npc){effect=spirit::PASSIVE;}
  if ACTIVE.load(Ordering::Acquire)&&matches!(effect,102100|balloon::DOWN)&&is_local(player,base){on_effect(player,balloon::DOWN,base);}
@@ -2436,6 +2451,8 @@ unsafe extern "system" fn on_update(player:usize,dt:f32) {
  deliberate_punch::update(player,base);
  static_charge::update(player,base,dt);
  cold_juice::update(player,base,dt);
+ flowing_swordsman::update(player,base);
+ phantom_combo::update(player,base,dt);
  soul_critical::update(player,base);
  onyx_mastery::update(player,base);
  night_blessing::update(player,base,dt);

@@ -111,6 +111,7 @@
     "MagicFireRight_Upper_onUpdate": {
       "originalHash": "77f5b968c4770927b148ff70c05d1ad3a3e1fe2d12ce0d7a8b544f61db72a230",
       "nrhexHash": "04c89a2dc8128881b1a7b95b666dbf815ed1e9cafc9d1159d4c86869055ae24c",
+      "rebuiltNrhexHash": "d8d0a915ac91f308dfcb9699f0e6060c0edf4e6f946e573ffa0cb408f9486b67",
       "mmvFunctionHash": "ca2624e51378bf056449ac53da99beea2ecca5744d4f8c21638032e722720aa7",
       "actions": [
         {
@@ -133,6 +134,7 @@
     "MagicFireRight2_Upper_onUpdate": {
       "originalHash": "d45ce8b1e6395f3d3aff906f86bfe5ec4e84cc70ab6e69699e1237b902bc9101",
       "nrhexHash": "a7995cbb5de8af55b36d5e26c9fe5ad3c79da51248ed575858d4a356274411ec",
+      "rebuiltNrhexHash": "36afb96d20c04e70e3878b1e72d0e24d6f88f2f1a23e84257b1fd8872195c04e",
       "mmvFunctionHash": "69dbd6c823aaa57b9477e549433cef56f033be224957c2f5e9d5c6f04d4e1c0c",
       "actions": [
         {
@@ -155,6 +157,7 @@
     "MagicFireRight3_Upper_onUpdate": {
       "originalHash": "dd84508c4c49bd6966fd1715c1ce9e6fd04e4558d7bc358fb8bb08d3f0f3a866",
       "nrhexHash": "cd400424edde9c8278ca10a1abf3a70f78be2a94a481a86e513d7ba7307125d5",
+      "rebuiltNrhexHash": "598a3bbbc0eb65f5833228c58b107b470d3a6d771b5e33455ab4f1e3748060df",
       "mmvFunctionHash": "022b2c2dfbc238a83fd1ab1f5a948b45263866e769ea653d202c592ed09bb6af",
       "actions": [
         {
@@ -177,6 +180,7 @@
     "MagicFireLeft_Upper_onUpdate": {
       "originalHash": "69ba9d1b667a79b71aace327704a89edba4f3ac9f2cb5abcf76dbd781091250a",
       "nrhexHash": "7c110b2cfc1cf2453c829427d3d17119cb0e4355816d2edadc5d1f94d26d44cb",
+      "rebuiltNrhexHash": "1f0fb0a83134feb409e80097c5e32cc8ea8e5607f6b0742b6c7caf9ace2d6c71",
       "mmvFunctionHash": "8939b74ce3c9cec4e4d1a5ec0366d665278d313334a744d9b76dfe34971eaa3c",
       "actions": [
         {
@@ -199,6 +203,7 @@
     "MagicFireLeft2_Upper_onUpdate": {
       "originalHash": "327df0694c5a2bda0701ff26a9529862ef381300aaebfc86eace19e16f50d486",
       "nrhexHash": "e06245df2761d4a0e24895a99fba1914886615f1c245f0ccd9d6f6ce039da3a1",
+      "rebuiltNrhexHash": "020bb455f3ea7dc6178fadf10ad751e7b70016ed52c697cae0cca0289a08a60f",
       "mmvFunctionHash": "994d7b01cb5df6c8eed0ea933adc6ccaa7a87cdeb5870b5579bad7667bc1f742",
       "actions": [
         {
@@ -221,6 +226,7 @@
     "MagicFireLeft3_Upper_onUpdate": {
       "originalHash": "f55b590ff93312bd5ded45dbd8de6edd96fb8c158d49e568df0af03c8cd3f708",
       "nrhexHash": "2947e2568c4eebb38500be1d2830dfdb8b0ca2ae381925807ba1afb0c7f1bf94",
+      "rebuiltNrhexHash": "e9f6d50405030f2a838566e7739dd6621e83fe20eef6412332264a2da0e428bb",
       "mmvFunctionHash": "7ba570fcf9d435f370103e1f5bfcc1bcff55acc1460375d35c49ef55de23e1bd",
       "actions": [
         {
@@ -258,6 +264,7 @@
     "JumpCommonFunction": {
       "originalHash": "cb475b9f9c3d6e704f049387ad8e707b738c0959f19e20de5a9bac28a0813f9c",
       "nrhexHash": "4ac03096ff558a2021ed065a3907ff758f3f76f224b1e9868630fee84980dcad",
+      "rebuiltNrhexHash": "ab30816938ecd1b5c52b158a26f31834610843dd3e924c53c645593b5e5ba682",
       "mmvFunctionHash": "601288747be3a4fb39996218209c5af6e07fe3c9a51a3b967376dd855700bec8",
       "actions": [
         {
@@ -350,6 +357,7 @@
     "SwordArtsOneShot_onUpdate": {
       "originalHash": "741a4faa05a85de067bb61745e2ee1aabdb9ff49931d1532c9c0a8a542bc1319",
       "nrhexHash": "7c9be7b52b5ee333836a7364fe8fb90dcbcf43d14775c60fa59382b8dc7ff141",
+      "rebuiltNrhexHash": "635606e219f967254daca0a6f56c813e0383444eb56e53986eb537dd9a16b0fd",
       "mmvFunctionHash": "2ff2e08a05c2a2be0a32b5533d6236cec98dc71379ed8f17f4d30c0f5c204a8a",
       "actions": [
         {
@@ -370,6 +378,7 @@
     "SwordArtsHalfOneShot_Upper_onUpdate": {
       "originalHash": "bd50a09f6b4327de44183558b9650bbab2845cf7a333ea92df16115845e890d8",
       "nrhexHash": "20a44ff4fd9011a56eb5f55447a9e396a907c19b8e653f12ef6b442329d9d4c4",
+      "rebuiltNrhexHash": "ddfca4bdc943529902e1ae93da3c9711ccb420f2c3c1abaed4d0123732cc4fcb",
       "mmvFunctionHash": "3e625df8f0469e1f1de91dd6f2386e1282bc6af86566ea5dfdb0d2ee92c3a78a",
       "actions": [
         {

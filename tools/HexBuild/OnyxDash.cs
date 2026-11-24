@@ -16,7 +16,7 @@ static class OnyxDash {
   Check(a.Events.Any(e=>e.Type==1&&BitConverter.ToInt32(e.GetParameterBytes(false),8)==125&&e.StartTime>feet[0].StartTime),"Running-heavy attack changed");
   return feet[0].StartTime;
  }
- public static void Build(string input,string output){
+ public static void Build(string input,string output,string? report=null){
   var b=BND4.Read(input);var original=b.Files.ToDictionary(f=>f.ID,f=>f.Bytes.ToArray());
   var f=b.Files.Single(f=>Name(f)=="a40.tae");var t=TAE.Read(f.Bytes);
   var targets=t.Animations.Select((a,i)=>(a,i)).Where(p=>p.a.ID==30210&&p.a.Events.Count>0).ToArray();
@@ -39,7 +39,7 @@ static class OnyxDash {
   }
   var actualClip=TAE.Read(check.Files.Single(v=>v.ID==f.ID).Bytes).Animations.Single(v=>v.ID==30210&&v.Events.Count>0);
   Check(actualClip.Events.Count(Marker)==1&&actualClip.Events.Single(Marker).EndTime==FootContact(actualClip),"Startup window did not end at the right-foot contact");
-  File.WriteAllText(output+".onyx-dash.json",JsonSerializer.Serialize(new{animation="a040_030210",flag=Flag,endSeconds=end,nativeRootDistance=2.3905556f,movementScale=2.5f,normalScale=1.25f,estimatedExtraMetres=2.9881945f,originalEventBytesPreserved=true,outputSha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(output))),gameplayVerified=false},new JsonSerializerOptions{WriteIndented=true}));
+  File.WriteAllText(report??(output+".onyx-dash.json"),JsonSerializer.Serialize(new{animation="a040_030210",flag=Flag,endSeconds=end,nativeRootDistance=2.3905556f,maximumMovementScale=2.5f,normalScale=1.25f,maximumEstimatedExtraMetres=2.9881945f,originalEventBytesPreserved=true,outputSha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(output))),gameplayVerified=false},new JsonSerializerOptions{WriteIndented=true}));
   Console.WriteLine("PASS: Onyx dash flag ends at right-foot contact; all existing event bytes and other binder members retained");
  }
 }

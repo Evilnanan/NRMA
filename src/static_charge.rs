@@ -135,11 +135,19 @@ pub unsafe fn update(actor:usize,base:usize,dt:f32){
 }
 // Native dispatch can contain preview calculations and nested dispatches. Only
 // its accepted-hit notification commits, once per dispatch, not once per frame.
-thread_local!{static DISPATCH:RefCell<Vec<(usize,usize,bool)>>=const{RefCell::new(Vec::new())};}
+thread_local!{static DISPATCH:RefCell<Vec<(usize,usize,[bool;2])>>=const{RefCell::new(Vec::new())};}
 pub struct DispatchGuard;
 impl Drop for DispatchGuard{fn drop(&mut self){DISPATCH.with(|s|{s.borrow_mut().pop();});}}
-pub fn dispatch_scope(module:usize,hit:usize)->DispatchGuard{DISPATCH.with(|s|s.borrow_mut().push((module,hit,false)));DispatchGuard}
-fn first_contact(module:usize,hit:usize)->bool{DISPATCH.with(|s|{let mut s=s.borrow_mut();let Some(v)=s.last_mut().filter(|v|v.0==module&&v.1==hit)else{return false;};if v.2{return false;}v.2=true;true})}
+pub fn dispatch_scope(module:usize,hit:usize)->DispatchGuard{DISPATCH.with(|s|s.borrow_mut().push((module,hit,[false;2])));DispatchGuard}
+fn claim_contact(module:usize,hit:usize,consumer:usize)->bool{
+ DISPATCH.with(|s|{
+  let mut stack=s.borrow_mut();
+  let Some(scope)=stack.last_mut().filter(|v|v.0==module&&v.1==hit) else{return false;};
+  !std::mem::replace(&mut scope.2[consumer],true)
+ })
+}
+fn first_contact(module:usize,hit:usize)->bool{claim_contact(module,hit,0)}
+pub(crate) fn first_flowing_contact(module:usize,hit:usize)->bool{claim_contact(module,hit,1)}
 // Capture before all custom late offensive multipliers. Also observe preview
 // calculations: native contact can reuse a previously computed hit structure.
 #[derive(Clone,PartialEq,Eq)]struct Key{source:u64,target:u64,attack:i32,table:i32,components:[u32;5],point:[u32;3]}
@@ -377,7 +385,7 @@ pub unsafe fn contact(original:unsafe extern "system" fn(usize,usize,usize)->u8,
  #[test]fn accepted_scope_deduplicates_notifications_not_same_frame_attacks(){
   assert!(!first_contact(1,2));{let _a=dispatch_scope(1,2);assert!(first_contact(1,2));assert!(!first_contact(1,2));
    {let _b=dispatch_scope(3,4);assert!(first_contact(3,4));assert!(!first_contact(1,2));}assert!(!first_contact(1,2));}
-  let _next=dispatch_scope(1,2);assert!(first_contact(1,2));
+  let _next=dispatch_scope(1,2);assert!(first_contact(1,2));assert!(first_flowing_contact(1,2));assert!(!first_flowing_contact(1,2));
  }
  #[test]fn evasion_tripling_is_distance_based_and_independent_of_update_order(){
   for action in 1..=6{for callback_first in [false,true]{

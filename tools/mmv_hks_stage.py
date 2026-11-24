@@ -81,7 +81,7 @@ def compose(source, before, after, plan):
             add(named[name]['body'], named[name]['body'], render(new, 0, end, dict(enumerate(named[name]['args']))), name + ':prefix')
         else:
             spec = plan['functions'].get(name)
-            if not spec or spec['originalHash'] != hash_function(old) or spec['nrhexHash'] != hash_function(new):
+            if not spec or spec['originalHash'] != hash_function(old) or hash_function(new) not in (spec['nrhexHash'], spec.get('rebuiltNrhexHash')):
                 raise ValueError(f'Interior adapter needs review against the current shared HKS: {name}')
             mmv_body = source[named[name]['start']:named[name]['end']]
             if hashlib.sha256(mmv_body.encode()).hexdigest() != spec['mmvFunctionHash']:

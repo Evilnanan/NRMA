@@ -122,7 +122,7 @@ Extends jumping distance after starting a sprint. Stacks up to three times. Each
 <!-- hex:95002400 -->
 ## Clash
 
-Two-handed attacks can guard enemy blows. After a successful guard, guard counters deal double damage and restore HP and stamina on hit.
+Two-handed attacks can parry. Parrying grants 60% damage reduction for one hit. A follow-up guard counter restores HP and stamina on hit.
 
 <!-- hex:95002500 -->
 ## Night's Blessing
@@ -263,3 +263,13 @@ Replaces your unarmed skill with Lightning Ram. Hold the skill button to keep ac
 ## Iced Juice
 
 Using a flask causes frostbite, grants frost weapon buffs, and creates an ice storm that pursues the first enemy struck.
+
+<!-- hex:95005800 -->
+## Phantom Combo
+
+Successive attacks unleash successive attacks.
+
+<!-- hex:95005900 -->
+## Flowing Swordsman
+
+Gain a Flowing Curved Sword. It builds combos and charges faster, and uses less stamina. Successive attacks raise attack power.

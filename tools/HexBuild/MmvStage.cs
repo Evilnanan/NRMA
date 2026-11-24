@@ -6,14 +6,8 @@ using System.Text.Json;
 // These files are incomplete work products, never an installable MMV overlay.
 static class MmvStage {
     static string Name(BinderFile file) => file.Name.Replace('\\', '/').Split('/').Last();
-    static string Value(object? value) => value switch {
-        float number => "f32:" + BitConverter.SingleToInt32Bits(number).ToString("X8"),
-        double number => "f64:" + BitConverter.DoubleToInt64Bits(number).ToString("X16"),
-        _ => JsonSerializer.Serialize(value)
-    };
-    static bool Same(PARAM.Row a, PARAM.Row b) => a.Name == b.Name &&
-        a.Cells.Select(c => (c.Def.InternalName, Value(c.Value)))
-            .SequenceEqual(b.Cells.Select(c => (c.Def.InternalName, Value(c.Value))));
+    static bool Same(PARAM.Row a, PARAM.Row b) =>
+        a.Name == b.Name && MmvCompat.SameCells(a, b, checkNames: true);
     static void Require(bool condition, string message) {
         if (!condition) throw new InvalidDataException(message);
     }
@@ -78,10 +72,12 @@ static class MmvStage {
                 }
                 foreach (var cell in wanted.Cells) {
                     var key = cell.Def.InternalName;
-                    if (Value(cell.Value) == Value(old[key].Value)) continue;
-                    Require(Value(current[key].Value) == Value(old[key].Value) || Value(current[key].Value) == Value(cell.Value),
+                    var previous = old[key].Value;
+                    if (MmvCompat.SameCell(cell.Value, previous)) continue;
+                    var destination = current[key];
+                    Require(MmvCompat.SameCell(destination.Value, previous) || MmvCompat.SameCell(destination.Value, cell.Value),
                         $"Parameter field collision: {name}/{id}/{key}");
-                    current[key].Value = cell.Value; changed = true;
+                    destination.Value = cell.Value; changed = true;
                 }
             }
             if (!changed) continue;

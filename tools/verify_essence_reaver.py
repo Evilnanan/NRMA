@@ -23,7 +23,7 @@ assert owner['iconId']==expected_icon and owner['displayIconForPermamentEffect']
 assert owner['maxMpRate']==1 and owner['dispDartDebuffStacks']==0
 ids={FIRST+digit*256+value for digit in range(4) for value in range(1,256)}
 assert ids.issubset(effects) and len(ids)==1020
-# Current builds still clear the legacy reward marker in events after retiring its PARAM row.
+# Historical packages have a saved reward marker that current builds no longer issue.
 legacy_marker={95002829} if 95002829 in effects or '--installed' not in sys.argv else set()
 for id in ids|{RESET}|legacy_marker:
  e=effects[id]
@@ -36,11 +36,12 @@ previous={e['ID']:e for e in d['previousEvents']}if not installed else {}
 for id,e in events.items():
  ins=e['instructions'];at=next(n for n,i in enumerate(ins) if (i['Bank'],i['ID'],i['hex'])==(2004,21,struct.pack('<Ii',20000,RESET).hex().upper()))
  assert [(i['Bank'],i['ID'],struct.unpack('<Ii',bytes.fromhex(i['hex'])))for i in ins[at:at+2]]==[(2004,21,(20000,RESET)),(2004,8,(20000,RESET))]
- assert sum((i['Bank'],i['ID'],i['hex'])==(2004,21,struct.pack('<Ii',20000,95002829).hex().upper())for i in ins)==1
+ if legacy_marker:
+  assert sum((i['Bank'],i['ID'],i['hex'])==(2004,21,struct.pack('<Ii',20000,95002829).hex().upper())for i in ins)==1
  if not installed:assert ins[:at-1]+ins[at+2:]==previous[id]['instructions'] and e['Parameters']==previous[id]['Parameters']
 
 def run(event,completed=False,ready=True,hub=False,world=False):
- marks={95002829};groups={};pc=0
+ marks=legacy_marker.copy();groups={};pc=0
  for _ in range(len(ins)):
   i=events[event]['instructions'][pc];op=i['Bank'],i['ID'];a=bytes.fromhex(i['hex']);pc+=1
   if op==(2000,2):assert a[0]==0
@@ -76,10 +77,10 @@ for completed in [False,True]:
  for ready in [False,True]:
   for world in [False,True]:
    reset,marks=run(1111,completed,ready,world=world);assert reset==(not completed and ready)
-   assert (95002829 in marks)==(not reset)
+   assert (95002829 in marks)==(bool(legacy_marker) and not reset)
    timelines.append(dict(event=1111,completed=completed,ready=ready,world=world,reset=reset))
 for hub in [False,True]:
- reset,marks=run(9100941,hub=hub);assert reset==hub and (95002829 in marks)==(not reset)
+ reset,marks=run(9100941,hub=hub);assert reset==hub and (95002829 in marks)==(bool(legacy_marker) and not reset)
  timelines.append(dict(event=9100941,hub=hub,reset=reset))
 
 exe=GAME/'nightreign.exe';assert hashlib.sha256(exe.read_bytes()).hexdigest()=='9545e8732919bb6a63904cb73223641b3c4f9a67869be5722612acca413e8b3a'

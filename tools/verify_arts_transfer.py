@@ -40,7 +40,8 @@ check(0x57b4e7,'4C 8B C7 48 8B D3')
 call(0x57b4ed,0x6a08b0) # Factory writes the newly generated full instance handle.
 check(0x57b52b,'48 8B C3') # Preserve output-handle pointer return value.
 source=(root/'src/lib.rs').read_text(encoding='utf8')
-assert 'arts_bind_drop(descriptor);\n let scope=PERSONAL_REWARD' in source
+dispatch=source.split('fn reward_create_detour(',1)[1].split('\n}',1)[0]
+assert dispatch.index('arts_bind_drop(descriptor)') < dispatch.index('let scope=PERSONAL_REWARD')
 assert 'payload!=scope.pickup_payload' in source and 'drop.payload' in source
 assert 'ArtsTransferGuard::enter' in source
 report=dict(version='0.15.4',nativeGroundUidOffset='5C',groundDescriptorOffset='20',

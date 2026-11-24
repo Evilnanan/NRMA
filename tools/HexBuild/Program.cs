@@ -77,7 +77,6 @@ var source=Path.Combine(game,"regulation.bin");
 Require(Hash(source)=="876A3CA279A4561D0C69F81FE5E510C75C59AB9A8A201694F8CF4A42C91E0268","Unsupported regulation hash");
 var bnd=SFUtil.DecryptNightreignRegulation(source);
 Require(bnd.Version=="10350000","Unsupported regulation version");
-var original=bnd.Files.ToDictionary(f=>f.ID,f=>f.Bytes.ToArray());
 var defs=new Dictionary<string,PARAMDEF>();
 PARAM Parse(string name,Memory<byte> bytes){
  var p=PARAM.Read(bytes);
@@ -121,6 +120,7 @@ if(args.Contains("--ram-sync-verify-package")){
  return;
 }
 if(args.Contains("--ram-sync-name-stage")){int at=Array.IndexOf(args,"--ram-sync-name-stage");var registrySource=args[at+1]=="original"?RamSyncNames.Original(root,smith,game):args[at+1];RamSyncNames.Stage(registrySource,args[at+2]);return;}
+if(args.Contains("--flowing-charge-actions")){FlowingSwordsman.ChargeFile(Path.Combine(root,"dist/mod/chr/c0000.anibnd.dcx"));return;}
 if(args.Contains("--onyx-planted-stage")){int at=Array.IndexOf(args,"--onyx-planted-stage");OnyxMastery.RefreshPlanted(args[at+1],args[at+2],Parse);return;}
 if(args.Contains("--lightning-ram-power")){LightningRam.PowerStage(root,Parse,args.Contains("--mmv"));return;}
 if(args.Contains("--lightning-ram-extreme")){LightningRam.Extreme(root,bnd,Parse,args.Contains("--mmv"));return;}
@@ -131,6 +131,13 @@ if(args.Contains("--cold-juice-start-visual")){int at=Array.IndexOf(args,"--cold
 if(args.Contains("--cold-juice-frost-stage")){int at=Array.IndexOf(args,"--cold-juice-frost-stage");ColdJuice.FrostStage(args[at+1],args[at+2],Parse);return;}
 if(args.Contains("--cold-juice-visual-stage")){int at=Array.IndexOf(args,"--cold-juice-visual-stage");ColdJuice.Visual(root,args[at+1],args[at+2]);return;}
 if(args.Contains("--lightning-ram-stage")){LightningRam.Stage(root,bnd,Parse,HexCatalog.Load(root),args.Contains("--mmv"));return;}
+if(args.Contains("--onyx-actions")){
+ string mod=Path.Combine(root,"dist/mod"),actions=Path.Combine(mod,"chr/c0000.anibnd.dcx");
+ OnyxMastery.Animations(mod,actions);
+ OnyxDash.Build(actions,actions,Path.Combine(root,"dist/reports/onyx-dash.json"));
+ OnyxMastery.DashMap(Path.Combine(mod,"regulation.bin"),Path.Combine(root,"src/onyx_dash_data.rs"),Parse);
+ return;
+}
 if(args.Contains("--onyx-check")){OnyxMastery.Verify(root,bnd,Parse,args.Contains("--mmv"),args.Contains("--tune"));return;}
 if(args.Contains("--onyx-dash-map")){int at=Array.IndexOf(args,"--onyx-dash-map");OnyxMastery.DashMap(args[at+1],args[at+2],Parse);return;}
 if(args.Contains("--onyx-mastery-stage")){OnyxMastery.Stage(root,bnd,Parse,HexCatalog.Load(root),args.Contains("--mmv"));return;}
@@ -372,6 +379,7 @@ if(args.Contains("--coop-01749-probe")){CoopAudit.Probe(root,Parse,Parse("NpcPar
 if(args.Contains("--coop-01749-stage")){CoopAudit.Stage(root,Parse);return;}
 if(args.Contains("--spirit-corpse-cue-only")){SpiritPlacement.Stage(root,Parse);return;}
 if(args.Contains("--spirit-cue-visibility-only")){SpiritPlacement.StageVisibility(root,Parse);return;}
+var original=bnd.Files.ToDictionary(f=>f.ID,f=>f.Bytes.ToArray());
 var names=new[]{"SpEffectParam","AttachEffectParam","PermanentBuffParam","EquipParamGoods","ItemTableParam","ItemLotParam_enemy","ItemLotParam_map","Bullet","AtkParam_Pc","AtkParam_Npc","BehaviorParam_PC","SpEffectVfxParam","NpcParam","NpcThinkParam","MultiPlayCorrectionParam","ChaosMatchingCorrectParam","ChaosMatchingMutationCategoryParam","ChaosMatchingMutationEnemyTableParam","SpEffectSetParam","LotBaseMapPatternFlag"};
 var files=names.ToDictionary(n=>n,n=>bnd.Files.Single(f=>Path.GetFileName(f.Name)==n+".param"));
 var pars=files.ToDictionary(k=>k.Key,k=>Parse(k.Key,k.Value.Bytes));
@@ -983,6 +991,7 @@ foreach(var h in hexes){
  if(h.Id==95001400){Set(s,"artsConsumptionRate",0f);}
  if(h.Id==EchoCast.Owner)EchoCast.OwnerEffect(s);
  if(h.Id==Momentum.Owner)Momentum.OwnerEffect(s);
+ if(h.Id==PhantomCombo.Owner)PhantomCombo.ConfigureOwner(s,pars["SpEffectParam"].Rows.Single(r=>r.ID==8610100));
  if(h.Id==95002100){Set(s,"magicConsumptionRate",1f);Set(s,"miracleConsumptionRate",1f);}
  if(h.Id==95000900){
   var nativeMelee=pars["SpEffectParam"].Rows.Single(r=>r.ID==8320500);
@@ -1028,6 +1037,9 @@ SoulCritical.Mechanics(Clone);
 OnyxMastery.Mechanics(Clone,pars["ItemLotParam_map"]);
 LightningRam.Mechanics(Clone);
 ColdJuice.Mechanics(Clone);
+PhantomCombo.Mechanics(Clone);
+FlowingSwordsman.Mechanics(Clone,pars["ItemLotParam_map"]);
+FlowingSwordsman.Decay(pars["SpEffectParam"],Clone);
 PotentialFission.Mechanics(Clone);
 foreach(var weaponParam in new[]{"EquipParamCustomWeapon","EquipParamWeapon"})pars[weaponParam]=Parse(weaponParam,bnd.Files.Single(f=>Path.GetFileName(f.Name)==weaponParam+".param").Bytes);
 PotentialFission.Generate(pars,Path.Combine(root,"src/fission_catalog.rs"));
@@ -1343,7 +1355,7 @@ foreach(var lang in new[]{"zhocn","engus"}){
  Require(statusNames.Length==1,"Missing native SpEffectName text file");
  var statusName=statusNames[0];var statusFmg=FMG.Read(statusName.Bytes);
  var statuses=HexTexts.Statuses(root,hexes,lang);
- foreach(var h in hexes.Where(h=>h.Id==Erosion.Owner))statuses[h.Id]=lang=="zhocn"?(h.Zh,h.ZhInfo):(h.En,h.EnInfo);
+ foreach(var h in hexes.Where(h=>h.Id==Erosion.Owner||h.Id==PhantomCombo.Owner||h.Id==FlowingSwordsman.Owner))statuses[h.Id]=lang=="zhocn"?(h.Zh,h.ZhInfo):(h.En,h.EnInfo);
  var statusInfoFile=tb.Files.Single(f=>Path.GetFileName(f.Name)=="SpEffectInfo.fmg");
  var statusInfoFmg=FMG.Read(statusInfoFile.Bytes);
  foreach(var (id,text) in statuses){
@@ -1450,6 +1462,8 @@ LightFooted.Events(ev);
 
 LightningRam.Events(ev);
 ColdJuice.Events(ev);
+PhantomCombo.Events(ev);
+FlowingSwordsman.Events(ev);
 Basics.Events(ev);
 Sniper.Events(ev);
 UltimateUnstoppable.Events(ev);
@@ -1463,7 +1477,7 @@ HubCleanup.Events(ev,hexes,effects);
 var eventDest=Path.Combine(root,"dist/mod/event/common.emevd.dcx");Directory.CreateDirectory(Path.GetDirectoryName(eventDest)!);ev.Write(eventDest);var outEv=EMEVD.Read(eventDest);
 bool Same(EMEVD.Event a,EMEVD.Event b)=>a.ID==b.ID&&a.RestBehavior==b.RestBehavior&&a.Name==b.Name&&a.Instructions.Count==b.Instructions.Count&&a.Instructions.Zip(b.Instructions).All(v=>v.First.Bank==v.Second.Bank&&v.First.ID==v.Second.ID&&v.First.Layer==v.Second.Layer&&v.First.ArgData.SequenceEqual(v.Second.ArgData))&&JsonSerializer.Serialize(a.Parameters)==JsonSerializer.Serialize(b.Parameters);
 Require(outEv.Format==origEv.Format&&outEv.Compression==origEv.Compression&&outEv.StringData.SequenceEqual(origEv.StringData)&&outEv.LinkedFileOffsets.SequenceEqual(origEv.LinkedFileOffsets),"EMEVD metadata changed");
-Require(outEv.Events.Count==origEv.Events.Count+26&&origEv.Events.Where(e=>e.ID!=0&&e.ID!=1304&&e.ID!=1111&&e.ID!=9100941).All(e=>Same(e,outEv.Events.Single(o=>o.ID==e.ID))),"Existing events changed");Require(ev.Events.All(e=>Same(e,outEv.Events.Single(o=>o.ID==e.ID))),"Edited events failed readback");
+Require(outEv.Events.Select(e=>e.ID).Except(origEv.Events.Select(e=>e.ID)).Order().SequenceEqual(new long[]{9100900,9100901}.Concat(Enumerable.Range(9100910,21).Select(i=>(long)i)).Concat(new long[]{9100940,9100941,9100960,9101100,9101101,9101102,9101103,9101104,9101120,DoubleDip.GrantEvent}).Order())&&origEv.Events.Where(e=>e.ID!=0&&e.ID!=1304&&e.ID!=1111&&e.ID!=9100941).All(e=>Same(e,outEv.Events.Single(o=>o.ID==e.ID))),"Existing events changed");Require(ev.Events.All(e=>Same(e,outEv.Events.Single(o=>o.ID==e.ID))),"Edited events failed readback");
 var churchReports=new List<object>();
 var churchSources=new[]{
  ("m41_00_00_00",41004700u,"8C9B4F43717A9800E02E1497075AE9C2874808877671364BD5BD0EF7D38D57CA"),
@@ -1510,9 +1524,5 @@ SoulCritical.Resources(root,Path.Combine(root,"dist/mod"),soulResources);
 File.Copy(Path.Combine(soulResources,"sfxbnd_commoneffects_dlc01.ffxbnd.dcx"),Path.Combine(root,"dist/mod/sfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx"),true);
 ColdJuice.Visual(root,Path.Combine(root,"dist/mod/sfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx"),Path.Combine(root,"dist/mod/sfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx"));
 
-OnyxMastery.Animations(Path.Combine(root,"dist/mod"),Path.Combine(root,"dist/mod/chr/c0000.anibnd.dcx"));
 OnyxBehavior.Stage(root,Path.Combine(root,"assets/original/chr/c0000.behbnd.dcx"),Path.Combine(root,"dist/mod/chr/c0000.behbnd.dcx"),Path.Combine(root,"work/onyx-behavior/standalone"));
 OnyxMastery.Resources(root,Path.Combine(root,"dist/mod"),Path.Combine(root,"dist/mod/sfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx"));
-
-OnyxMastery.DashMap(Path.Combine(root,"dist/mod/regulation.bin"),Path.Combine(root,"src/onyx_dash_data.rs"),Parse);
-OnyxDash.Build(Path.Combine(root,"dist/mod/chr/c0000.anibnd.dcx"),Path.Combine(root,"dist/mod/chr/c0000.anibnd.dcx"));

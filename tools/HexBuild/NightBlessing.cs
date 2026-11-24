@@ -70,11 +70,13 @@ static partial class NightBlessing{
   string input=Path.Combine(root,"dist/mod/chr/c0000.anibnd.dcx");
   var binder=BND4.Read(input);var before=binder.Files.ToDictionary(f=>f.ID,f=>f.Bytes.ToArray());
   var member=binder.Files.Single(f=>Path.GetFileName(f.Name)=="a00.tae");var tae=TAE.Read(member.Bytes);
+  int removed=0;
   foreach(long id in new long[]{81400,81401}){
    var a=tae.Animations.Single(a=>a.ID==id);
-   a.Events.RemoveAll(e=>e.Type==67&&BitConverter.ToInt32(e.GetParameterBytes(false))==Owner+7);
+   removed+=a.Events.RemoveAll(e=>e.Type==67&&BitConverter.ToInt32(e.GetParameterBytes(false))==Owner+7);
   }
-  member.Bytes=tae.Write();string animOut=Path.Combine(dir,"c0000.anibnd.dcx");binder.Write(animOut);
+  if(removed!=0)member.Bytes=tae.Write();
+  string animOut=Path.Combine(dir,"c0000.anibnd.dcx");binder.Write(animOut);
   var result=BND4.Read(animOut);foreach(var f in result.Files){Check(f.Bytes.Span.SequenceEqual(binder.Files.Single(x=>x.ID==f.ID).Bytes.Span),"TAE readback differs");if(f.ID!=member.ID)Check(f.Bytes.Span.SequenceEqual(before[f.ID]),"Unrelated TAE changed");}
   bool Marker(TAE.Event e)=>e.Type==67&&BitConverter.ToInt32(e.GetParameterBytes(false))==Owner+7;
   var old=TAE.Read(before[member.ID]);var current=TAE.Read(result.Files.Single(f=>f.ID==member.ID).Bytes);Check(old.Animations.Count==current.Animations.Count,"Animation count changed");

@@ -137,15 +137,23 @@ class VM:
   raise AssertionError(('Event failed to yield',self.code[self.pc]))
  def calls(self,n):return [(t,a) for t,k,a in self.outputs if k==n]
 
+class BattleVM(VM):
+ def __init__(self,code,world,births):
+  super().__init__(code,world)
+  self.births=[VM(birth,world,True) for birth in births]
+  # The host's event scripts share its local flags, including each reveal.
+  for birth in self.births:birth.flags=self.flags
+ def step(self,t=0):
+  for birth in self.births:birth.step(t)
+  super().step(t)
+
 def start_battle(code,w):
  """Run current peer generation or the historical host generation path."""
  births=[event(r,w.p+9900+m['index']) for m in w.g['members']]
  peer_generation=any(n=='InvokeEnemyGenerator' for n,_ in births[0])
  if peer_generation:
   for actor in w.actors.values():actor.update(loaded=False,hp=0)
- battle=VM(code,w);battle.step()
- if peer_generation:
-  for birth in births:VM(birth,w,True).step()
+ battle=BattleVM(code,w,births if peer_generation else []);battle.step()
  return battle
 
 assert built['encounterCount']==50 and built['actorCount']==84

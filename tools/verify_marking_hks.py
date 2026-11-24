@@ -14,10 +14,10 @@ def verify(data):
  assert all(name in constants for name in [EVENTS[0],EVENTS[2],EVENTS[3]])
  events=[*EVENTS,*ORIGIN_EVENTS,*(s+'_Upper'for s in EVENTS+ORIGIN_EVENTS),'W_Rolling','W_Stealth_Rolling','W_SwordArtsRolling','W_AttackRightLight1','W_AttackRightLight2','W_AttackRightLightStep','W_AttackBothLightStep','W_AttackDualRolling','W_AttackArrowBothFireStep','W_Move','W_Idle','W_DamageLv3','UpperDefaultState0','W_MagicFireRight']
  for fid in [1,2,3,4]:
-  f=r.functions[fid];words=instructions(f);callsites=[i for i,x in enumerate(words)if x['op']==2 and x['c']==1]
+  f=r.functions[fid];words=instructions(f);callsites=[i for i,x in enumerate(words)if x['op']==2]
   # Origin and follow-up observers precede the untouched native callback.
   lightweight=LIGHT_QUERY in f['constants']
-  stop=callsites[1]+1;a=f['slots']-8-(5 if lightweight else 0);assert a>=3
+  stop=callsites[2 if lightweight else 1]+1;a=f['slots']-8-(5 if lightweight else 0);assert a>=3
   for event in events:
    regs={i:('original',i)for i in range(f['slots'])};regs[0]=event;saved={i:regs[i]for i in range(a)};calls=[]
    globals_={'env':lambda *args:calls.append(args)};pc=0
@@ -35,8 +35,9 @@ def verify(data):
    else:raise AssertionError('Observer loop')
    mode=next((i+(10 if event.endswith('_Upper')else 0)for i,name in enumerate(EVENTS,1)if event in[name,name+'_Upper']),0)
    origin=next((i+(10 if event.endswith('_Upper')else 0)for i,name in enumerate(ORIGIN_EVENTS,1)if event in[name,name+'_Upper']),0)
-   expected=([(LIGHT_QUERY,-1.,-1.)] if lightweight else [])+[(ORIGIN_QUERY,float(origin)),(QUERY,float(mode))]
-   assert calls==expected,(fid,event,calls)
+   # Standalone and MMV compose the independent light-footed prefix in different orders.
+   assert [args for args in calls if args[0]!=LIGHT_QUERY]==[(ORIGIN_QUERY,float(origin)),(QUERY,float(mode))],(fid,event,calls)
+   assert [args for args in calls if args[0]==LIGHT_QUERY]==([(LIGHT_QUERY,-1.,-1.)] if lightweight else []),(fid,event,calls)
    assert all(regs[i]==v for i,v in saved.items());cases+=1
  return cases
 if __name__=='__main__':

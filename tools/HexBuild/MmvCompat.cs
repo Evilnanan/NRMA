@@ -12,7 +12,28 @@ static class MmvCompat {
   double number=>"f64:"+BitConverter.DoubleToInt64Bits(number).ToString("X16"),
   _=>JsonSerializer.Serialize(v)
  };
- static bool Same(PARAM.Row a,PARAM.Row b)=>a.Cells.Select(c=>Value(c.Value)).SequenceEqual(b.Cells.Select(c=>Value(c.Value)));
+ // Compare the actual PARAM values. Keep the original representation for conflict reports
+ // and for unusual or differently typed cells that previously compared equal as JSON.
+ public static bool SameCell(object? a, object? b) {
+  if (ReferenceEquals(a, b)) return true;
+  if (a is float f && b is float g) return BitConverter.SingleToInt32Bits(f) == BitConverter.SingleToInt32Bits(g);
+  if (a is double d && b is double e) return BitConverter.DoubleToInt64Bits(d) == BitConverter.DoubleToInt64Bits(e);
+  if (a is byte[] x && b is byte[] y) return x.AsSpan().SequenceEqual(y);
+  if (a is sbyte or byte or short or ushort or int or uint or long or ulong or bool or string)
+   if (a.GetType() == b?.GetType()) return a.Equals(b);
+  return Value(a) == Value(b);
+ }
+ public static bool SameCells(PARAM.Row a, PARAM.Row b, bool checkNames) {
+  var left = a.Cells;
+  var right = b.Cells;
+  if (left.Count != right.Count) return false;
+  for (int i = 0; i < left.Count; i++) {
+   if (checkNames && left[i].Def.InternalName != right[i].Def.InternalName) return false;
+   if (!SameCell(left[i].Value, right[i].Value)) return false;
+  }
+  return true;
+ }
+ static bool Same(PARAM.Row a,PARAM.Row b)=>SameCells(a,b,checkNames:false);
  static object Event(EMEVD.Event e)=>new{e.ID,e.Name,e.RestBehavior,instructions=e.Instructions.Select(i=>new{i.Bank,i.ID,i.Layer,data=Convert.ToHexString(i.ArgData)}),parameters=e.Parameters};
  static bool Same(EMEVD.Event a,EMEVD.Event b)=>Value(Event(a))==Value(Event(b));
  public static void Audit(string root,string mmv,BND4 original,Func<string,Memory<byte>,PARAM> parse,string? originalSfx=null){

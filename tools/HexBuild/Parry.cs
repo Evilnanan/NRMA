@@ -57,7 +57,7 @@ static class Parry {
   var row=clone("SpEffectParam",322000,Owner+4);
   Check(Convert.ToInt32(row["magicSubCategoryChange1"].Value)==103,"Native guard-counter category changed");
   foreach(string f in new[]{"physicsAttackRate","magicAttackRate","fireAttackRate","thunderAttackRate","darkAttackRate"}){
-   Check(Math.Abs(Convert.ToSingle(row[f].Value)-1.2f)<.00001f,"Native guard-counter multiplier changed");Set(row,f,2f);
+   Check(Math.Abs(Convert.ToSingle(row[f].Value)-1.2f)<.00001f,"Native guard-counter multiplier changed");Set(row,f,1f);
   }
   Set(row,"spCategory",20);
   ParryRecovery.ConfigureCounter(row);ParryRecovery.Support(clone);
@@ -92,14 +92,14 @@ static class Parry {
   var result=SFUtil.DecryptNightreignRegulation(output);
   foreach(var f in result.Files){Check(f.Bytes.Span.SequenceEqual(binder.Files.Single(x=>x.ID==f.ID).Bytes.Span),"Counter readback differs");if(f.ID!=file.ID)Check(f.Bytes.Span.SequenceEqual(before[f.ID]),"Unrelated table changed");}
   var actual=parse("SpEffectParam",result.Files.Single(f=>f.ID==file.ID).Bytes);
-  Check(actual.Rows.Count==baseline.Rows.Count+3,"Unexpected row count");
+  Check(actual.Rows.Count==baseline.Rows.Count+4,"Unexpected row count");
   foreach(var row in baseline.Rows)Check(CageAI.Same(row,actual.Rows.Single(r=>r.ID==row.ID)),"Preexisting row changed");
   var added=actual.Rows.Single(r=>r.ID==Owner+4);var native=baseline.Rows.Single(r=>r.ID==322000);
   string[] changed={"physicsAttackRate","magicAttackRate","fireAttackRate","thunderAttackRate","darkAttackRate","spCategory","stateInfo","atkOccurrenceSpEffectId"};
   foreach(var cell in added.Cells.Where(c=>!changed.Contains(c.Def.InternalName)))Check(Equals(cell.Value,native[cell.Def.InternalName].Value),"Native guard-counter filter/lifecycle changed");
   ParryRecovery.Validate(binder,result,parse);
-  File.WriteAllText(Path.Combine(dir,"counter-parameter-validation.json"),JsonSerializer.Serialize(new{inputSha256=Hash(input),outputSha256=Hash(output),added=Owner+4,nativeTemplate=322000,attackCategory=103,multiplier=2f,originalRowsUnchanged=true,nativeFiltersUnchanged=true,gameplayVerified=false},new JsonSerializerOptions{WriteIndented=true}));
-  Console.WriteLine("PASS: native category-103 counter multiplier x2 staged/read back; all existing parameters preserved");
+  File.WriteAllText(Path.Combine(dir,"counter-parameter-validation.json"),JsonSerializer.Serialize(new{inputSha256=Hash(input),outputSha256=Hash(output),added=Owner+4,nativeTemplate=322000,attackCategory=103,multiplier=1f,originalRowsUnchanged=true,nativeFiltersUnchanged=true,gameplayVerified=false},new JsonSerializerOptions{WriteIndented=true}));
+  Console.WriteLine("PASS: native category-103 counter recovery marker staged/read back; all existing parameters preserved");
  }
  public static void StageSupport(string root,Func<string,Memory<byte>,PARAM> parse){
   string input=Path.Combine(root,"dist/mod/regulation.bin"),dir=Path.Combine(root,".work/parry/staged");Directory.CreateDirectory(dir);
@@ -188,21 +188,47 @@ static class Parry {
   (int,byte,short,byte) Key(TAE.Event e){var b=e.GetParameterBytes(false);return(BitConverter.ToInt32(b,8),b[13],BitConverter.ToInt16(b,14),(byte)(b.Length>16&&b[16]==1?1:0));}
   var guardTemplate=parsed.Values.SelectMany(t=>t.Animations).Where(a=>a.ID==30900).SelectMany(a=>a.Events).First(e=>Guard(e)&&BitConverter.ToInt32(e.GetParameterBytes(false),8)==460);
   Check(guardTemplate.Group!=null&&guardTemplate.Group!.GroupType==0,"Native guard event group changed");
-  // Rebuilding replaces only our tagged events; native and earlier Mod events survive.
-  foreach(var t in parsed.Values)foreach(var a in t.Animations){a.Events.RemoveAll(e=>Generated(e));if(a.Events.Any(Guard))continue;foreach(var e in a.Events.Where(Weapon)){var k=Key(e);Check(k.Item3<first||k.Item3>=last,"Attack condition collides with private range");keyset.Add(k);}}
+  // Collect native attack conditions before assigning their stable state IDs.
+  foreach(var t in parsed.Values)foreach(var a in t.Animations){
+   if(a.Events.Any(e=>!Generated(e)&&Guard(e)))continue;
+   foreach(var e in a.Events.Where(Weapon)){var k=Key(e);Check(k.Item3<first||k.Item3>=last,"Attack condition collides with private range");keyset.Add(k);}
+  }
   var keys=keyset.ToArray();Check(first+keys.Length*tiers<=last,"Too many guarded attack conditions");
   var indices=keys.Select((k,i)=>(k,i)).ToDictionary(v=>v.k,v=>v.i);int added=0,clips=0;
-  foreach(var f in binder.Files.Where(f=>parsed.ContainsKey(f.ID))){var t=parsed[f.ID];foreach(var a in t.Animations){
-   if(a.Events.Any(Guard))continue;var selected=a.Events.Where(Weapon).ToArray();if(selected.Length==0)continue;clips++;
-   var group=a.EventGroups.FirstOrDefault(g=>g.GroupType==0);
-   if(group==null){group=new TAE.EventGroup(guardTemplate.Group!.GroupType){GroupData=guardTemplate.Group!.GroupData};a.EventGroups.Add(group);}
-   foreach(var e in selected)for(int index=0;index<tiers;index++){
-    float beforeMilliseconds=totalMilliseconds[index]/2f;
-    float beforeSeconds=beforeMilliseconds/1000f,afterSeconds=(totalMilliseconds[index]-beforeMilliseconds)/1000f;
-    var b=guardTemplate.GetParameterBytes(false).ToArray();BitConverter.GetBytes(ParryCounterHit.TagBase+first+indices[Key(e)]*tiers+index).CopyTo(b,8);BitConverter.GetBytes((short)(first+indices[Key(e)]*tiers+index)).CopyTo(b,14);
-    a.Events.Add(new TAE.Event(Math.Max(0,e.StartTime-beforeSeconds),e.StartTime+afterSeconds,0,guardTemplate.Unk04,b,false){Group=group});added++;
+  foreach(var f in binder.Files.Where(f=>parsed.ContainsKey(f.ID))){
+   var t=parsed[f.ID];
+   var additions=new Dictionary<int,List<TAE.Event>>();
+   bool retimed=false;
+   for(int clip=0;clip<t.Animations.Count;clip++){
+    var a=t.Animations[clip];
+    var existing=a.Events.Where(Generated).ToArray();
+    var attackEvents=a.Events.Where(Weapon).ToArray();
+    if(a.Events.Any(e=>!Generated(e)&&Guard(e))||attackEvents.Length==0){
+     Check(existing.Length==0,"Guard windows on an ineligible clip");continue;
+    }
+    clips++;
+    var group=a.EventGroups.FirstOrDefault(g=>g.GroupType==0)??new TAE.EventGroup(guardTemplate.Group!.GroupType){GroupData=guardTemplate.Group.GroupData};
+    var windows=new List<TAE.Event>();
+    foreach(var attack in attackEvents)for(int tier=0;tier<tiers;tier++){
+     float halfWindow=totalMilliseconds[tier]/2000f;
+     int condition=first+indices[Key(attack)]*tiers+tier;
+     var bytes=guardTemplate.GetParameterBytes(false).ToArray();
+     BitConverter.GetBytes(ParryCounterHit.TagBase+condition).CopyTo(bytes,8);
+     BitConverter.GetBytes((short)condition).CopyTo(bytes,14);
+     windows.Add(new TAE.Event(Math.Max(0,attack.StartTime-halfWindow),attack.StartTime+halfWindow,0,guardTemplate.Unk04,bytes,false){Group=group});
+    }
+    added+=windows.Count;
+    if(existing.Length==0){additions.Add(clip,windows);continue;}
+    Check(existing.Length==windows.Count,"Existing guard window count changed");
+    foreach(var (previous,desired) in existing.Zip(windows)){
+     Check(previous.GetParameterBytes(false).SequenceEqual(desired.GetParameterBytes(false)),"Existing guard window identity changed");
+     retimed|=previous.StartTime!=desired.StartTime||previous.EndTime!=desired.EndTime;
+     previous.StartTime=desired.StartTime;previous.EndTime=desired.EndTime;
+    }
    }
-  }f.Bytes=TaeTiming.Rewrite(before[f.ID],t,Generated);}
+   var timed=retimed?TaeTiming.Rewrite(before[f.ID],t,Generated):before[f.ID];
+   f.Bytes=additions.Count==0?timed:TaeOverlay.Add(timed,additions);
+  }
   string output=Path.Combine(work,"c0000.anibnd.dcx");binder.Write(output);var readback=BND4.Read(output);
   Check(readback.Files.Count==binder.Files.Count,"Animation binder member count changed");
   foreach(var f in readback.Files){var expected=binder.Files.Single(x=>x.ID==f.ID);Check(f.Name==expected.Name&&f.Flags==expected.Flags&&f.Bytes.Span.SequenceEqual(expected.Bytes.Span),"Animation binder readback mismatch");if(!parsed.ContainsKey(f.ID))Check(f.Bytes.Span.SequenceEqual(before[f.ID]),"Non-TAE member changed");

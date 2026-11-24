@@ -34,6 +34,7 @@ def interpreted(code, constants, globals_, arguments, outputs=()):
         elif op in (2, 69):
             value = regs[a](*(regs[i] for i in range(a + 1, a + b)))
             if c == 2: regs[a] = value
+        elif op == 44: regs[a] = regs[b] * rk(c)
         elif op == 4:
             if (rk(b) == rk(c)) != bool(a): position += 1
         elif op == 57:

@@ -91,12 +91,12 @@ unsafe extern "system" fn decode_good(item:usize,stream:usize)->u8{
 unsafe extern "system" fn handle_out(out:usize,handle:u64)->usize{ptr::write_unaligned(out as*mut u64,handle);out}
 unsafe extern "system" fn handle_in(handle:usize,out:usize)->usize{ptr::write_unaligned(out as*mut u64,ptr::read_unaligned(handle as*const u64));out}
 unsafe extern "system" fn no_item_flag(_:usize)->u8{0}
-unsafe fn online_descriptor(lot:i32,slot:u8,index:u8,source:u64,sequence:u32,tag:bool)->[u64;24]{
+unsafe fn online_descriptor(lot:i32,slot:u8,index:u8,source:u64,sequence:u32,record:[u32;3],tag:bool,expected_lot:i32)->[u64;24]{
  let mut input=descriptor(lot,slot,index,source);
  let p=input.as_mut_ptr()as usize;
  ptr::write_unaligned((p+0x58)as*mut u32,0x12);
  ptr::write_unaligned((p+0x5c)as*mut u32,0x48000000|sequence);
- ptr::write_unaligned((p+0xac)as*mut i32,-1);
+ ptr::write_unaligned((p+0xac)as*mut [u32;3],record);
  let mut buffer=[0u64;128];let mut stream=[buffer.as_mut_ptr()as usize,1024];
  let before=input;
  let writer:unsafe extern "system" fn(usize,usize)->usize=std::mem::transmute(ENCODE_ORIGINAL.load(Ordering::Acquire));
@@ -107,8 +107,8 @@ unsafe fn online_descriptor(lot:i32,slot:u8,index:u8,source:u64,sequence:u32,tag
  stream=[buffer.as_mut_ptr()as usize,size];
  assert_eq!(decode(out,stream.as_mut_ptr()as usize),1);
  assert_eq!(stream[1],0);
- assert_eq!(read_i32(out+0xb8),if tag{lot}else{-1});
- assert_eq!(read_ptr(out+0xb0),0);assert_eq!(read_ptr(out+0x60),source as usize);
+ assert_eq!(read_i32(out+0xb8),expected_lot,"reward record {record:?}");
+ assert_eq!(ptr::read_unaligned((out+0xac)as*const [u32;3]),record);assert_eq!(read_ptr(out+0x60),source as usize);
  decoded
 }
 unsafe fn emit(base:usize,manager:usize,lot:i32,slot:u8,source:u64,count:u8){
@@ -199,16 +199,22 @@ fn compiled_fission_routes_online_draws_and_native_independent_groups(){unsafe{
   apply(player,reward_cycle_runtime::RESET,0);update(player,base,0.3);assert!(STATE.lock().unwrap().seen.is_empty());remove(0,reward_cycle_runtime::RESET);
 
  }
+ // Native records already carrying data must survive the codec untouched.
+ for record in [[1,0,0],[0,1,0],[0,0,1],[u32::MAX,0,1]]{
+  online_descriptor(source,2,0,777,1,record,true,-1);
+ }
+ online_descriptor(-1,2,0,777,1,[0;3],true,-1);
  for slot in 1..=3{
   data[2]=slot;
   for (receive,fresh) in [(0x57ee94,false),(0x57f046,true),(0x57f42c,true)]{
    *STATE.lock().unwrap()=State::new();NODES.with(|n|n.borrow_mut().clear());ptr::write_unaligned((items+0x58)as*mut usize,0);
-   let legacy=online_descriptor(source,slot as u8,0,777,1,false);
+   let legacy=online_descriptor(source,slot as u8,0,777,1,[0;3],false,-1);
    assert_eq!(read_i32(legacy.as_ptr()as usize+0xb8),-1);
    // Four drops from the same actor/lot, with duplicate and out-of-order packets.
    for draw in 0..4{
     for index in (0..count).rev().chain(0..count){
-     let mut d=online_descriptor(source,slot as u8,index,777,1+draw*3+u32::from(index),true);
+     let record=if draw%2==0{[0;3]}else{[u32::MAX,0,0]};
+     let mut d=online_descriptor(source,slot as u8,index,777,1+draw*3+u32::from(index),record,true,source);
      capture(items,d.as_mut_ptr()as usize,base+receive);
     }
     native_flight(base,0.8);update(player,base,0.3);

@@ -36,9 +36,10 @@ assert 'if CALLBACK_LOCK.swap(true,Ordering::AcqRel)' in delivery
 assert 'now.saturating_add(250)' in delivery
 assert 'unclaimed_hex_ball(base)' in delivery
 assert 'choose_reward(player,base,None)' in delivery
-assert 'terrain_exclusions(owned_hexes(player,base),reward_terrain::exclude_cage(reward_terrain::great_hollow(base)))' in source
+assert 'terrain_exclusions(unavailable,reward_terrain::exclude_cage(reward_terrain::great_hollow(base)))' in source
 assert 'level_rewards::REACHED.iter()' in delivery
-assert 'created==3' in source
+spawn=source.split('unsafe fn spawn_personal(',1)[1].split('unsafe fn spawn_personal_lot(',1)[0]
+assert spawn.rstrip().endswith('created>0\n}')  # A published partial ball must not be retried.
 assert 'if !changed&&now<due{return;}' in delivery
 assert 'state.changed(player,level)' in delivery
 assert 'level_rewards::queued(reached,receipts,alive,expedition,pending_ball)' in delivery
@@ -49,16 +50,26 @@ assert any(i['Bank']==2004 and i['instruction']==21 for i in events['nativeExamp
 gate, reset = sorted((e for e in events['events'] if e['ID']!=1111), key=lambda e:e['ID'])
 deployment = next(e for e in events['events'] if e['ID']==1111)
 original = next(e for e in json.loads((root/'data/reference/rewards/deployment-events.json').read_text(encoding='utf8')) if e['file']=='common.emevd.dcx' and e['ID']==1111)
-reset_ids=[*range(95002701,95002706),95002505,*range(95002800,95002825),95002829,95002830,*range(95002825,95002829),95002903]
-lifecycle_ops=[(21,effect) for effect in reset_ids]+[(8,95002903)]+[(21,effect) for effect in range(95000103,95000107)]+[(8,95000106),(8,95002825)]
-lifecycle=[dict(Bank=2004,ID=operation,hex=struct.pack('<Ii',20000,effect).hex().upper()) for operation,effect in lifecycle_ops]
-assert deployment['instructions'][9:9+len(lifecycle)]==lifecycle
-assert reset['instructions'][13:13+len(lifecycle)]==lifecycle
-deployment=dict(deployment,instructions=deployment['instructions'][:9]+deployment['instructions'][9+len(lifecycle):])
-reset=dict(reset,instructions=reset['instructions'][:13]+reset['instructions'][13+len(lifecycle):])
-assert deployment['Parameters']==[] and len(deployment['instructions'])==40
-assert deployment['instructions'][:9]+deployment['instructions'][17:]==original['instructions']
-assert [(i['Bank'],i['ID'],struct.unpack('<Ii',bytes.fromhex(i['hex']))) for i in deployment['instructions'][9:17]]==[(2004,21,(20000,v)) for v in [95001000,95001001,95001002,95001003,95001010,95001011,95001012,95001013]]
+def read_reset_block(event, start, receipts):
+    # Other abilities share this guarded block. Inspect the level receipts and
+    # reconstruct the enclosing event without any player effect instructions.
+    instructions=event['instructions']
+    end=start
+    found=[]
+    while end<len(instructions):
+        op=instructions[end]
+        if (op['Bank'],op['ID']) not in [(2004,8),(2004,21)]:break
+        target,effect=struct.unpack('<Ii',bytes.fromhex(op['hex']))
+        assert target==20000
+        if 95001000<=effect<=95001013:found.append((op['ID'],effect))
+        end+=1
+    assert found==[(21,v) for v in receipts]
+    return instructions[:start]+instructions[end:]
+
+receipts=[*range(95001000,95001004),*range(95001010,95001014)]
+assert deployment['Parameters']==[] and read_reset_block(deployment,9,receipts)==original['instructions']
+hub_receipts=[*receipts[:4],95001004,*receipts[4:]]
+hub_flow=read_reset_block(reset,4,hub_receipts)
 for event in [gate, reset]:
     assert event['Parameters'] == [] and event['RestBehavior'] == 1
     assert event['instructions'][0] == {'Bank':2000, 'ID':2, 'hex':'00000000'}
@@ -68,9 +79,8 @@ assert [(i['Bank'], i['ID']) for i in gi] == [(2000,2),(3,8),(3,8),(0,0),(2004,8
 assert [bytes.fromhex(i['hex'])[:6] for i in gi[1:3]] == [bytes([1,0,10,0,0,0]), bytes([1,0,11,0,0,0])]
 assert struct.unpack('<f', bytes.fromhex(gi[5]['hex']))[0] == .5
 assert [bytes.fromhex(i['hex'])[:6] for i in ri[1:3]] == [bytes([255,1,10,0,0,0]), bytes([255,1,11,0,0,0])]
-assert [struct.unpack('<Ii',bytes.fromhex(i['hex'])) for i in ri[4:13]] == [(20000,v) for v in [95001000,95001001,95001002,95001003,95001004,95001010,95001011,95001012,95001013]]
-assert all((i['Bank'],i['ID'])==(2004,21) for i in ri[4:13])
-assert ri[3]['hex']=='0001FF00' and ri[15]['hex']=='00010100'
+assert [(i['Bank'],i['ID']) for i in hub_flow]==[(2000,2),(3,8),(3,8),(0,0),(3,8),(3,8),(0,0),(1000,4)]
+assert hub_flow[3]['hex']=='0001FF00' and hub_flow[6]['hex']=='00010100'
 rarities = json.loads(Path(r'D:/Program Files/Smithbox/Assets/PARAM/NR/Param Enums/RARITY.json').read_text(encoding='utf8'))
 (root/'dist/reports/level-reward-validation.json').write_text(json.dumps(dict(version='0.14.6',levels=levels,nativePlayerLevelOffset='GameDataMan+8 -> +68',nativeLocalSlotOffset='GameDataMan+8 -> +8',rarity=3,nativeRarityEnum=rarities,localEventsReadBack=True,nativeFreshDeploymentGuardAndResetReadBack=True,returnToHubClearsOnlyCustomReceipts=True,nativeIntegerReturnAndDescriptorOffsetsVerified=True,gameplayVerified=False,multiplayerVerified=False),ensure_ascii=False,indent=2),encoding='utf8')
 print('PASS: native level, slot, descriptor ABI, gold rarity and local hub-reset event readback.')

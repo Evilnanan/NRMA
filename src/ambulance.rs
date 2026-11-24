@@ -138,6 +138,10 @@ pub unsafe extern "system" fn env(context:usize,code:i32,vm:usize)->i32{
   if code==crate::lightning_ram::STOP_QUERY{if crate::is_local(actor,base){crate::lightning_ram::reset();}return 0;}
  }
 
+ if code==crate::onyx_mastery::dash::QUERY{
+  if !ACTIVE.load(Ordering::Acquire)||context==0{return 0;}
+  return crate::onyx_mastery::dash::scale(read_ptr(context),BASE.load(Ordering::Acquire));
+ }
  if code==crate::onyx_mastery::DASH_QUERY{
   return i32::from(ACTIVE.load(Ordering::Acquire)&&context!=0&&crate::onyx_mastery::dash_ready(read_ptr(context),BASE.load(Ordering::Acquire)));
  }
@@ -259,6 +263,7 @@ pub(crate) unsafe fn static_rescue(target:usize,hit:usize,base:usize)->bool{
  party_member(target,base)&&ptr::read((target+0x710)as*const u8)==1&&outgoing_power(target,hit,base,common_row(base))>0
 }
 unsafe extern "system" fn outgoing(module:usize,source:usize,hit:usize){
+ if ACTIVE.load(Ordering::Acquire) { crate::flowing_swordsman::outgoing(module,source,hit); }
  crate::static_charge::outgoing(module,source,hit);
  crate::cold_juice::outgoing(module,source,hit);
  crate::soul_critical::outgoing(module,source,hit);

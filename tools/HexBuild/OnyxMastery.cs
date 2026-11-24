@@ -37,11 +37,14 @@ static class OnyxMastery {
   }
   var behavior=clone("BehaviorParam_PC",300805900,Behavior);
   Set(behavior,"refId",Owner+50);Set(behavior,"behaviorJudgeId",Judge);Set(behavior,"stamina",20);
-  var lot=clone("ItemLotParam_map",lots.Rows.First(r=>Convert.ToInt32(r["lotItemCategory01"].Value)==2&&Convert.ToInt32(r["lotItemId01"].Value)>0).ID,Lot);
+  WeaponLot(clone,lots,Lot,8010000);
+ }
+ public static void WeaponLot(Func<string,int,int,PARAM.Row> clone,PARAM lots,int lotId,int weapon){
+  var lot=clone("ItemLotParam_map",lots.Rows.First(r=>Convert.ToInt32(r["lotItemCategory01"].Value)==2&&Convert.ToInt32(r["lotItemId01"].Value)>0).ID,lotId);
   for(int n=1;n<=8;n++){Set(lot,$"lotItemId{n:00}",-1);Set(lot,$"lotItemCategory{n:00}",0);Set(lot,$"lotItemBasePoint{n:00}",0);Set(lot,$"lotItemNum{n:00}",0);}
   // Category 6 generates the native custom weapon, including its random
   // attachment table. Category 2 only grants the bare EquipParamWeapon.
-  foreach(var(f,v)in new[]{("lotItemId01",8010000),("lotItemCategory01",6),("lotItemBasePoint01",1000),("lotItemNum01",1),("getItemFlagId",0),("cumulateNumFlagId",0),("cumulateNumMax",0)})Set(lot,f,v);
+  foreach(var(f,v)in new[]{("lotItemId01",weapon),("lotItemCategory01",6),("lotItemBasePoint01",1000),("lotItemNum01",1),("getItemFlagId",0),("cumulateNumFlagId",0),("cumulateNumMax",0)})Set(lot,f,v);
  }
  // MMV legitimately contains non-finite floats; compare their exact bits.
  static string Value(object? v)=>v switch{

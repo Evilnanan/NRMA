@@ -44,8 +44,8 @@ assert all(serialized[95001201][field]==.7 for field in ['physicsAttackRate','ma
 assert all(serialized[95001201][field]==1 for field in ['magParamChange','miracleParamChange','shamanParamChange'])
 assert all(serialized[95001201][field]==.4 for field in ['slashDamageCutRate','blowDamageCutRate','thrustDamageCutRate','neutralDamageCutRate','magicDamageCutRate','fireDamageCutRate','thunderDamageCutRate','darkDamageCutRate'])
 source=(root/'src/lib.rs').read_text();getter=source[source.index('unsafe extern "system" fn speed_detour'):source.index('unsafe fn update_escape')]
-assert 'read_ptr(controller+8)!=player' in getter and 'read_ptr(modules+0x28).checked_add(0x1800)' in getter
-assert 'ptr::write' not in getter and '2.0}else{rate}' in getter
+assert 'read_ptr(controller+8)==player' in getter and 'read_ptr(modules+0x28).checked_add(0x1800)' in getter
+assert 'ptr::write' not in getter and '==Some(controller){rate=2.0;}' in getter and 'lightning_ram::speed(controller,rate)' in getter
 assert 'speed_prepared.stolen!=5' in source
 report=dict(version='0.13.0',originalSpeedGetterIsolatedExecutionPassed=True,originalLowHpComparisonIsolatedExecutionPassed=True,hpCases=cases,ctPointerChain='player+1B8 -> module+28 -> controller+1800 -> rate+18',onlyLocalActiveOwner=True,noSpeedFieldWrites=True,readyHudIcon=20222,ultimateReadyHudIcon=20297,gameplayVerified=False,multiplayerVerified=False)
 (root/'dist/reports/escape-validation.json').write_text(json.dumps(report,indent=2),encoding='utf8')

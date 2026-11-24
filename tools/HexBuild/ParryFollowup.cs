@@ -75,8 +75,12 @@ static class ParryFollowup {
   string input=Path.Combine(root,"dist/mod/chr/c0000.anibnd.dcx");var b=BND4.Read(input);var before=b.Files.ToDictionary(f=>f.ID,f=>f.Bytes.ToArray());
   foreach(var f in b.Files.Where(f=>targets.ContainsKey(Path.GetFileName(f.Name)))){
    var t=TAE.Read(f.Bytes);
+   var additions=new Dictionary<int,List<TAE.Event>>();
+   bool replaceExisting=false;
    foreach(long id in targets[Path.GetFileName(f.Name)]){
-    var a=t.Animations.Single(a=>a.ID==id);a.Events.RemoveAll(Generated);
+    var a=t.Animations.Single(a=>a.ID==id);
+    var existing=a.Events.Where(Generated).ToArray();
+    a.Events.RemoveAll(Generated);
     var template=a.Events.First(Counter);var bytes=template.GetParameterBytes(false).ToArray();BitConverter.GetBytes(Marker).CopyTo(bytes,0);
     float end=reactionEnds[Path.GetFileName(f.Name)][id];
     Check(ReactionEnd(a)==end,"Installed native guard timing changed: "+id);
@@ -98,8 +102,13 @@ static class ParryFollowup {
     // Executor's own reaction already contains these; preserve it once.
     if(!a.Events.Any(Spark)){Add(spark,Right,20);Add(spark,Left,21);Add(spark,WeaponRight,20110);Add(spark,WeaponLeft,10110);}
     if(!a.Events.Any(Audio))Add(sound,Sound,null);
+    var desired=a.Events.Where(Generated).ToList();
+    if(existing.Length==0)additions.Add(t.Animations.IndexOf(a),desired);
+    else if(existing.Length!=desired.Count||!existing.Zip(desired).All(p=>Same(p.First,p.Second)))replaceExisting=true;
    }
-   f.Bytes=t.Write();
+   // Preserve unrelated clips and their original event buffers when installing feedback.
+   if(replaceExisting)f.Bytes=t.Write();
+   else if(additions.Count!=0)f.Bytes=TaeOverlay.Add(before[f.ID],additions);
   }
   string output=Path.Combine(dir,"c0000.anibnd.dcx");b.Write(output);var final=BND4.Read(output);
   foreach(var f in final.Files){

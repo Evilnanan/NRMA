@@ -69,9 +69,10 @@ static class JiahaoFollowup {
             }
             if (extras.Count > 0) target.Bytes = TaeOverlay.Add(source[Name(f)], extras);
         }
+        int feintEvents = JiahaoFeint.Apply(bundle);
         Check(report.Count == 72, "Expected both hand cancel windows on 36 backstep clips");
         string output = Path.Combine(folder, relative); Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-        if (added == 0) File.Copy(input, output, true); else bundle.Write(output);
+        if (added == 0 && feintEvents == 0) File.Copy(input, output, true); else bundle.Write(output);
         var readback = BND4.Read(output);
         Check(readback.Files.Count == bundle.Files.Count, "Binder count changed");
         foreach (var (a, b) in bundle.Files.Zip(readback.Files))
@@ -79,7 +80,7 @@ static class JiahaoFollowup {
         string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
         File.WriteAllText(Path.Combine(folder, "validation.json"), JsonSerializer.Serialize(new {
             input, output, sourceSha256 = Hash(input), sha256 = Hash(output), ownerState = OwnerState,
-            advanceSeconds = Advance, added, originalEventsAndAnimationBytesPreserved = true,
+            advanceSeconds = Advance, added, feintEvents, originalEventsAndAnimationBytesPreserved = true,
             gameplayVerified = false, windows = report
         }, new JsonSerializerOptions { WriteIndented = true }));
         Console.WriteLine($"PASS: 72 owner-gated backstep attack windows validated; {added} added. {output}");

@@ -53,14 +53,51 @@ try:
      assert count==int(expected),(active,kind,tag,damage,count)
      if count:assert ids[0]==95002406
      cases.append(dict(active=active,kind=kind,tag=tag,damage=damage,recoveryEvents=count))
- # Adding the on-hit state must retain the original five-element x2 multiplier.
+ # The category-103 recovery marker must be neutral for all five damage types.
  patch(0xe6d630,bytes.fromhex('48 8b c1 c3')) # Param repository reference lookup only.
  calculate=c.WINFUNCTYPE(None,c.c_void_p,c.c_void_p,c.c_int,c.c_int)(m+0x502830)
  for tag in [0,103,130]:
   context=c.create_string_buffer(0x180);put(context,8,'<i',40000);put(context,12,'<i',1)
   if tag:put(context,0x14+tag//8,'<B',1<<(tag%8))
   put(node,0x68,'<I',0);calculate(manager,context,-1,-1)
-  for off in [0x90,0xa4,0xa8,0xac,0xb0]:assert abs(struct.unpack_from('<f',context,off)[0]-(2 if tag==103 else 1))<1e-6,(tag,off)
+  for off in [0x90,0xa4,0xa8,0xac,0xb0]:assert abs(struct.unpack_from('<f',context,off)[0]-1)<1e-6,(tag,off)
+ # Check the native admission predicates in both grant orders, then calculate
+ # damage and expire the installed effect rows on the same incoming hit.
+ same_id=c.WINFUNCTYPE(c.c_ubyte,c.c_void_p,c.c_uint)(m+0x510b20)
+ same_state=c.WINFUNCTYPE(c.c_ubyte,c.c_void_p,c.c_uint)(m+0x510b70)
+ same_category=c.WINFUNCTYPE(c.c_ubyte,c.c_void_p,c.c_uint,c.c_uint)(m+0x510bd0)
+ defense=c.WINFUNCTYPE(None,*([c.c_void_p]*5))(m+0x503800)
+ expire=c.WINFUNCTYPE(None,c.c_void_p,c.c_float,c.c_ubyte,c.c_ubyte,c.c_ubyte)(m+0x504d30)
+ recognizes_accumulator=c.WINFUNCTYPE(c.c_ubyte,c.c_void_p)(m+0xea1960)
+ shield_cases=[]
+ for vanilla in [8610702,8610712,8610722]:
+  for order in [(vanilla,95002408),(95002408,vanilla)]:
+   params=[row(id) for id in order]
+   nodes=[c.create_string_buffer(0x88) for _ in order]
+   effects=c.create_string_buffer(0x80)
+   put(effects,8,'<Q',c.addressof(nodes[0]))
+   for i,(id,param,n) in enumerate(zip(order,params,nodes)):
+    put(n,0,'<Q',c.addressof(param));put(n,8,'<i',id)
+    put(n,0x4c,'<f',30.);put(n,0x68,'<I',4)
+    assert bool(recognizes_accumulator(n))==(id==vanilla)
+    if id==95002408:assert integer(param,0x184)==0
+    assert same_id(n,id) and not same_id(n,order[1-i])
+    assert not same_state(n,304) and not same_category(n,20,0)
+   # Compare combined native mitigation with each shield evaluated on its own.
+   def damage_rates(head):
+    put(effects,8,'<Q',c.addressof(head))
+    lanes=[(c.c_float*5)() for _ in range(3)]
+    defense(effects,*lanes,c.create_string_buffer(0x400))
+    return [a*b*d for a,b,d in zip(*lanes)]
+   single=[damage_rates(n) for n in nodes]
+   assert all(abs(v-.4)<1e-5 for v in single[order.index(95002408)])
+   put(nodes[0],0x38,'<Q',c.addressof(nodes[1]))
+   both=damage_rates(nodes[0])
+   assert all(abs(v-a*b)<1e-5 for v,a,b in zip(both,*single)),(order,both,single)
+   for damage,remaining in [(0.,30.),(100.,0.)]:
+    expire(effects,damage,3,0,1)
+    assert all(struct.unpack_from('<f',n,0x4c)[0]==remaining for n in nodes)
+   shield_cases.append(dict(order=order,damageRate=both[0]))
  # Run the actual selected-effect delivery loop. Recipient is the attacker,
  # not the struck enemy. Only row lookup / final apply call are fixtures.
  applied=[]
@@ -131,6 +168,6 @@ try:
  assert 'COUNTER_COST' not in (ROOT/'src/lib.rs').read_text()
  assert 'counter_cost_detour' not in (ROOT/'src/parry.rs').read_text()
 finally:assert k.VirtualFree(m,0,0x8000)
-report=dict(nativeSelectorCases=len(cases),cases=cases,nativeRecoveryCases=recovery,damageMultiplierPreserved=True,nativeAttackerDelivery=True,nativeOpportunityRemovalSynchronous=True,prayerfulStrikeVfx=8630,prayerfulStrikeSfx=525033,counterCostHookRemoved=True,stubs=['security-cookie helper','HP setter post-write authority predicate','attack-rate parameter reference lookup','selected-effect row lookup and final effect submission; native caller recipient verified','opportunity removal post-unlink destruction/category bookkeeping for stack-backed nodes'],fixtureSha256=hashlib.sha256(fixture).hexdigest(),gameplayVerified=False,multiplayerVerified=False)
+report=dict(shieldCases=shield_cases,nativeSelectorCases=len(cases),cases=cases,nativeRecoveryCases=recovery,neutralCounterDamage=True,nativeAttackerDelivery=True,nativeOpportunityRemovalSynchronous=True,prayerfulStrikeVfx=8630,prayerfulStrikeSfx=525033,counterCostHookRemoved=True,stubs=['security-cookie helper','HP setter post-write authority predicate','attack-rate parameter reference lookup','selected-effect row lookup and final effect submission; native caller recipient verified','opportunity removal post-unlink destruction/category bookkeeping for stack-backed nodes'],fixtureSha256=hashlib.sha256(fixture).hexdigest(),gameplayVerified=False,multiplayerVerified=False)
 (work/'native-validation.json').write_text(json.dumps(report,indent=2)+'\n')
-print(f'PASS: {len(cases)} native Clash on-hit/category cases; x2 damage, attacker-only delivery, 35% HP and 65% stamina recovery')
+print(f'PASS: {len(cases)} native Clash on-hit/category cases; neutral counter damage, attacker-only delivery, 35% HP and 65% stamina recovery')

@@ -14,8 +14,14 @@ logger=(root/'src/log.rs').read_text(encoding='utf8')
 assert 'OutputDebugStringW' not in logger
 assert 'f.probe()' in hot and 'r.note_refill_attempt(after.gauge>=99.9)' in hot
 assert 'let now=GetTickCount64();' in hot and 'SWORD_LAST_CAST.store(now,Ordering::Release)' in hot and 'sword::CAST_PULSE' in hot
-assert 'h.queue(source,caster_stats,amount)' in hot and 'shell.absorb(player,stats,s,eligible)' in hot
-assert 'sword::heal_amount(read_i32(hit+0x280),spell_percentage(hit).unwrap_or(0.),ptr::read((hit+0x2c3) as *const u8)&2!=0)' in hot
+assert 'shell.absorb(player,stats,s,eligible)' in hot
+# Sword recovery is now settled by the two native regain paths.
+regain=(root/'src/sword_regain.rs').read_text(encoding='utf8').split('#[cfg(test)]')[0]
+assert all(token not in regain for token in ('nlog_', 'println!', 'DIAGNOSTICS'))
+for path in ('direct','received'):
+ assert f'sword_regain::{path} as *const u8' in source
+assert 'sword::heal_amount(damage,percentage,nullified)' in regain
+assert 'select(original,spell_percentage(hit),read_i32(hit+0x280)' in regain
 hks=json.loads((root/'dist/reports/hks-validation.json').read_text(encoding='utf8'))
 assert hks['removedWallDiagnosticPulses']==[95000808,95000816,95000824,95000832]
 assert hks['independentDecompilerReadbackPassed'] and hks['inversePatchReconstructsOriginal']

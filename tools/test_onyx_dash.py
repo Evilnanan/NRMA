@@ -1,7 +1,7 @@
 """Execute both bytecode-derived MMV Lua and the intended native fallthrough."""
 import struct, unittest
 from pathlib import Path
-from build_onyx_dash_hks import patch, QUERY, FLAG, SCALE
+from build_onyx_dash_hks import patch, QUERY, FLAG, UNIT
 from hks_bytecode import Reader, decode
 from mmv_hks_fragments import Fragment, functions
 from mmv_hks_stage import runtime
@@ -15,11 +15,11 @@ class DashTests(unittest.TestCase):
         lua=runtime();prefix=Fragment(f['code'][:n*4],f['constants'],inputs={0:'attack_type'}).lua()
         lua.execute('function probe(attack_type)\n'+prefix+'return -99\nend')
         for attack in [12,13]:
-            for eligible in [0,1]:
+            for encoded in [0,1280,1749,2560]:
                 for flag in [0,1]:
                     calls=[];regs={i:('original',i)for i in range(report['originalRegisters'])};regs[0]=attack;saved=regs.copy()
                     def env(code,*args):
-                        if code==QUERY:return eligible
+                        if code==QUERY:return encoded
                         self.assertEqual((code,args),(301,(FLAG,)));return flag
                     globals_={'ATTACK_RIGHT_HEAVYDASH':12,'env':env,'act':lambda *args:calls.append(args),'TRUE':1}
                     pc=0;returned=False
@@ -31,24 +31,29 @@ class DashTests(unittest.TestCase):
                         elif op==2:
                             v=regs[a](*(regs[i]for i in range(a+1,a+b)))
                             if c==2:regs[a]=v
+                        elif op==44:regs[a]=regs[b]*f['constants'][c-256]
+                        elif op==57:
+                            if (f['constants'][b]<regs[c])!=bool(a):pc+=1
                         elif op==4:
                             if (regs[b]==regs[c])!=bool(a):pc+=1
                         elif op==28:pc+=bx-0x10000+1
                         elif op==9:returned=True;self.assertEqual(regs[a],1);break
                         else:self.fail(str(w))
-                    expected=attack==12 and eligible==1 and flag==1
-                    self.assertEqual(returned,expected);self.assertEqual(calls,[(2001,SCALE)]if expected else[])
+                    expected=attack==12 and encoded>0 and flag==1
+                    self.assertEqual(returned,expected);self.assertEqual(calls,[(2001,encoded*UNIT)]if expected else[])
                     self.assertEqual({k:regs[k]for k in saved},saved)
                     for k,v in globals_.items():lua.globals()[k]=v
                     calls.clear();self.assertEqual(lua.globals().probe(attack),1 if expected else -99)
-                    self.assertEqual(calls,[(2001,SCALE)]if expected else[])
+                    self.assertEqual(calls,[(2001,encoded*UNIT)]if expected else[])
 
     def test_patch_is_idempotent_and_keeps_all_native_branches(self):
         source=Path('dist/mod/action/script/c0000.hks').read_bytes()
         target,_=patch(source);self.assertEqual(patch(target)[0],target)
         a=Reader(source);a.function();b=Reader(target);b.function()
         for old,new in zip(a.functions,b.functions):
-            self.assertTrue(new['code'].endswith(old['code']))
+            if old['name']=='ExecTravelMagnification':
+                native=Reader(Path('assets/original/action/script/c0000.hks').read_bytes());native.function()
+                self.assertTrue(new['code'].endswith(next(x for x in native.functions if x['name']==old['name'])['code']))
             if old['name']!='ExecTravelMagnification':self.assertEqual(old['code'],new['code'])
 
     def test_travel_prefix_does_not_bypass_mmv_fallback(self):

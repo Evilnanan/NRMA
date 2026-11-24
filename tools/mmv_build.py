@@ -165,7 +165,10 @@ def main(argv=None) -> int:
             report['gitRevision'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
         except subprocess.CalledProcessError:
             report['gitRevision'] = None
-        command = ['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT), '--mmv-audit', str(mmv)]
+        tool_dir = ROOT / '.work/build-tools/HexBuild'
+        subprocess.run(['dotnet', 'build', str(ROOT / 'tools/HexBuild'), '--nologo', '--output', str(tool_dir)], check=True)
+        hex_build = ['dotnet', str(tool_dir / 'HexBuild.dll'), str(ROOT)]
+        command = [*hex_build, '--mmv-audit', str(mmv)]
         if args.original_sfx:
             source = args.original_sfx.resolve(strict=True)
             report['extraOriginalSfx'] = dict(path=str(source), sha256=digest(source))
@@ -193,9 +196,8 @@ def main(argv=None) -> int:
         if not args.original_sfx:
             raise ValueError('Full staging requires --original-sfx with the verified original common DLC SFX binder')
         print('Staging merged parameters and text...', flush=True)
-        with (REPORTS / 'stage.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
-                            '--mmv-stage-safe', str(mmv)], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
+        from mmv_param_stage import merge as merge_parameters_and_text
+        merge_parameters_and_text(ROOT, mmv, REPORTS, tool_dir / 'HexBuild.dll')
         report['partialPreview'] = json.loads((REPORTS / 'staged/manifest.json').read_text(encoding='utf8'))
         print('Composing and checking MMV HKS source...', flush=True)
         hks_stage = stage_hks(mmv, REPORTS / 'staged')
@@ -208,14 +210,14 @@ def main(argv=None) -> int:
         report['partialPreview']['files']['action/script/c0000.hks'] = hks_stage['outputSha256']
         print('Merging shared events and the MMV gaol opener...', flush=True)
         with (REPORTS / 'events.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--mmv-stage-events', str(mmv)], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         events = json.loads((REPORTS / 'staged/events-validation.json').read_text(encoding='utf8'))
         report['eventAdapter'] = events
         report['partialPreview']['files'].update({'event/' + f['file']: f['sha256'] for f in events['files']})
         for name, flag in [('maps', '--mmv-stage-maps'), ('binders', '--mmv-stage-binders'), ('tae', '--mmv-stage-tae')]:
             print(f'Staging and validating MMV {name}...', flush=True)
-            command = ['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT), flag, str(mmv)]
+            command = [*hex_build, flag, str(mmv)]
             if name == 'binders':
                 command += ['--original-sfx', str(args.original_sfx.resolve(strict=True))]
             with (REPORTS / f'{name}.log').open('w', encoding='utf8') as log:
@@ -227,7 +229,7 @@ def main(argv=None) -> int:
         print('Registering Onyx channel motion in the MMV behavior graph...', flush=True)
         behavior_work = REPORTS / 'onyx-behavior'
         with (REPORTS / 'onyx-behavior.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--onyx-behavior-stage', str(mmv / 'mod/chr/c0000.behbnd.dcx'),
                             str(REPORTS / 'staged/mod/chr/c0000.behbnd.dcx'), str(behavior_work)],
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
@@ -239,7 +241,7 @@ def main(argv=None) -> int:
         # Apply the private launch-chain revision even when the standalone
         # resource snapshot predates it; never alter the MMV source package.
         with (REPORTS / 'onyx-planted.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--onyx-planted-stage', str(REPORTS / 'staged/mod'), str(REPORTS / 'staged/mod')],
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         for name in ['regulation.bin', 'chr/c0000.anibnd.dcx']:
@@ -248,7 +250,7 @@ def main(argv=None) -> int:
         print('Synchronizing Soul Critical prelude with the current build settings...', flush=True)
         soul_stage = REPORTS / 'soul-visual'
         with (REPORTS / 'soul-visual.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--soul-visual-stage', '--mmv', '--input-mod', str(REPORTS / 'staged/mod'),
                             '--output-stage', str(soul_stage)], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         soul_visual = json.loads((soul_stage / 'validation.json').read_text(encoding='utf8'))
@@ -257,7 +259,7 @@ def main(argv=None) -> int:
         report['partialPreview']['files']['regulation.bin'] = digest(REPORTS / 'staged/mod/regulation.bin')
         print('Adding reviewed MMV field bosses to the demand-created cage pool...', flush=True)
         with (REPORTS / 'cages.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--mmv-stage-cages', str(mmv)], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         cages = json.loads((REPORTS / 'staged/cages-validation.json').read_text(encoding='utf8'))
         report['cageAdapter'] = cages
@@ -269,12 +271,12 @@ def main(argv=None) -> int:
         report['cageEscalation'] = json.loads((REPORTS / 'cage-escalation/validation.json').read_text(encoding='utf8'))
         print('Rebasing spirit summons on MMV NPCs and resolving boss HUD bindings...', flush=True)
         with (REPORTS / 'spirit-catalog.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--spirit-target-export', str(REPORTS / 'staged'), str(mmv)], cwd=ROOT,
                            stdout=log, stderr=subprocess.STDOUT, check=True)
             subprocess.run([sys.executable, str(ROOT / 'tools/build_mmv_spirit.py'), '--overlay', str(REPORTS / 'staged')],
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--spirit-target-apply', str(REPORTS / 'staged'), str(REPORTS / 'staged/spirit-plan.json')],
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         report['spiritAdapter'] = json.loads((REPORTS / 'staged/spirit-validation.json').read_text(encoding='utf8'))
@@ -292,18 +294,18 @@ def main(argv=None) -> int:
         validate_lock(json.loads(LOCK.read_text(encoding='utf8')), inventory(mmv))
         report.update(status='resources-staged', requiredAdapters=[])
         with (REPORTS / 'raider-check.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--mmv-raider-check', str(REPORTS / 'staged')], cwd=ROOT,
                            stdout=log, stderr=subprocess.STDOUT, check=True)
         report['raiderAdapter'] = json.loads((REPORTS / 'staged/raider-validation.json').read_text(encoding='utf8'))
         if args.stage_only:
             return 0
         with (REPORTS / 'soul-critical-catalog.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--soul-critical-map', str(REPORTS / 'staged')], cwd=ROOT,
                            stdout=log, stderr=subprocess.STDOUT, check=True)
         with (REPORTS / 'sword-auto.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--mmv-sword-range-catalog', str(REPORTS / 'staged')], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
             subprocess.run([sys.executable, str(ROOT / 'tools/build_sword_auto.py'), '--mmv', '--overlay', str(REPORTS / 'staged')],
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
@@ -314,21 +316,21 @@ def main(argv=None) -> int:
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         report['echoAdapter'] = json.loads((REPORTS / 'staged/echo-validation.json').read_text(encoding='utf8'))
         with (REPORTS / 'archmage-catalog.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--archmage-target-export', str(REPORTS / 'staged')], cwd=ROOT,
                            stdout=log, stderr=subprocess.STDOUT, check=True)
             subprocess.run([sys.executable, str(ROOT / 'tools/build_mmv_archmage.py'), '--overlay', str(REPORTS / 'staged')],
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         report['archmageAdapter'] = json.loads((REPORTS / 'staged/archmage-validation.json').read_text(encoding='utf8'))
         with (REPORTS / 'arts-catalog.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--arts-target-export', str(REPORTS / 'staged')], cwd=ROOT,
                            stdout=log, stderr=subprocess.STDOUT, check=True)
             subprocess.run([sys.executable, str(ROOT / 'tools/build_mmv_arts.py'), '--overlay', str(REPORTS / 'staged')],
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         report['artsAdapter'] = json.loads((REPORTS / 'staged/arts-validation.json').read_text(encoding='utf8'))
         with (REPORTS / 'erosion-catalog.log').open('w', encoding='utf8') as log:
-            subprocess.run(['dotnet', 'run', '--project', str(ROOT / 'tools/HexBuild'), '--', str(ROOT),
+            subprocess.run([*hex_build,
                             '--erosion-sources-catalog', str(REPORTS / 'staged/mod/regulation.bin'), str(REPORTS / 'staged')],
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         runtime_paths = [*ROOT.joinpath('src').rglob('*.rs'), ROOT / 'build.rs', ROOT / 'Cargo.toml', ROOT / 'Cargo.lock',

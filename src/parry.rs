@@ -11,6 +11,7 @@ pub const CHAIN:i32=95002401;
 pub const SPARK_RIGHT:i32=95002402;
 pub const SPARK_LEFT:i32=95002403;
 pub const COUNTER:i32=95002404;
+const ONE_HIT_SHIELD:i32=95002408;
 pub const REACTION:i32=95002405;
 pub const RECOVERY:i32=95002406;
 pub const RECOVERY_READY:i32=95002407;
@@ -188,14 +189,13 @@ unsafe fn on_guard_notification(module:usize,hit:usize,kind:i32)->(usize,bool){
  let remove:unsafe extern "system" fn(usize,i32)->u8=std::mem::transmute(base+crate::REMOVE_EFFECT_RVA);
  // Native HKS allows guard counters only after a guard (173/174). Remember
  // which effect supplied that guard, and replace that provenance on EVERY
- // accepted guard. No arbitrary timer: slow/multi-hit counters retain the
- // native category-103 multiplier for their whole attack, never stacking it.
+ // accepted guard. The category-103 marker selects guard-counter recovery.
  let present=has_effect(player,COUNTER,base);
  let counter_hit=enabled&&present&&counter_guard(player);
  let counter_submitted=if enabled{present||apply(player,COUNTER,0)!=0}
  else{if present{remove(manager,COUNTER);}false};
  // One opportunity per accepted attack guard. Repeated guards while ready
- // do not accumulate charges; an ordinary guard revokes both kinds of bonus.
+ // do not accumulate recovery charges; an ordinary guard revokes recovery.
  // Native additions are pending until the next effect update: querying the
  // newly submitted COUNTER here loses the first guard's recovery opportunity.
  // Queue READY alongside it; recover_once still requires both to be active.
@@ -203,6 +203,8 @@ unsafe fn on_guard_notification(module:usize,hit:usize,kind:i32)->(usize,bool){
   if !has_effect(player,RECOVERY_READY,base){apply(player,RECOVERY_READY,0);}
  }else if has_effect(player,RECOVERY_READY,base){remove(manager,RECOVERY_READY);}
  if !enabled{return (0,false);}
+ // Native successive-attack shield handles its own VFX, expiry and consumption.
+ apply(player,ONE_HIT_SHIELD,0);
  // An accepted parry during a Clash guard counter is also a recovery hit.
  // Submit through the existing shared effect hook: it consumes READY before
  // healing, so subsequent damage targets/segments cannot spend it again.
@@ -216,7 +218,7 @@ unsafe fn on_guard_notification(module:usize,hit:usize,kind:i32)->(usize,bool){
 // Called for the category-103 hit or counter-parry pulse, through the existing
 // shared effect hook. Remove the actor-owned opportunity synchronously BEFORE
 // submitting healing, so same-frame targets, delayed hits and reentry share it.
-// Keep COUNTER intact: every damage segment must still receive its x2 bonus.
+// COUNTER also identifies the accepted guard for follow-up actions and feedback.
 pub unsafe fn recover_once(player:usize,base:usize,submit:impl FnOnce()->u8)->u8{
  if owned_action(player).is_none()||has_effect(player,crate::reward_cycle_runtime::RESET,base)||
   !has_effect(player,COUNTER,base)||!has_effect(player,RECOVERY_READY,base){return 0;}
@@ -321,6 +323,7 @@ fn tier(weapon:f32,correction:f32)->Option<u8>{
 // select the currently equipped slots; using fixed slots 0/1 would be wrong.
 fn source(forced:u8,current:i32)->Option<i32>{match forced{0=>Some(current),1=>Some(-1),2=>Some(-2),_=>None}}
 pub unsafe extern "system" fn detour(manager:usize,state:u16)->u8{
+ if matches!(state,25059|25060){return crate::flowing_swordsman::feint_gate(manager,state);}
  if let Some(value)=feedback_query(manager,state){return value;}
  let original:Query=std::mem::transmute(ORIGINAL.load(Ordering::Acquire));
  let Some(((judge,forced,required,extra),wanted))=condition(state) else{return original(manager,state);};
@@ -408,6 +411,7 @@ pub unsafe extern "system" fn detour(manager:usize,state:u16)->u8{
   for(offset,value,special)in[(0x2c1,2,0),(0x2c1,8,0),(0x2c3,2,0),(0x2c1,0,1)]{
    hit[offset]=value;on_guard_notification(m,h,if special==0{3}else{99999});assert_eq!(effects.counter_applies,0);hit[offset]=0;
   }
+  assert!(!effects.ids.contains(&ONE_HIT_SHIELD));
   let manager=&mut effects as *mut Effects as usize;
   assert_eq!(feedback_query(manager,FEEDBACK_SOUND),Some(0));
   // Real native additions remain pending until the next effect update. The
@@ -415,6 +419,7 @@ pub unsafe extern "system" fn detour(manager:usize,state:u16)->u8{
   effects.defer=true;
   on_guard_notification(m,h,3);
   assert!(!effects.ids.contains(&COUNTER));
+  assert!(effects.pending.contains(&ONE_HIT_SHIELD));
   assert!(effects.pending.contains(&COUNTER));
   assert!(effects.pending.contains(&RECOVERY_READY),"first Clash lost its recovery opportunity");
   assert_eq!(effects.recoveries,0);
@@ -490,7 +495,10 @@ pub unsafe extern "system" fn detour(manager:usize,state:u16)->u8{
   assert_eq!(free_guard(m,h),0);assert_eq!(crate::read_i32(h+0x284),37);
   enter(m,h);assert_eq!(crate::read_i32(action.as_ptr() as usize+0x24c),460);leave();
   hit[0x2c1]=8;on_guard_notification(m,h,3);assert!(effects.ids.contains(&COUNTER));
+  let shields=effects.ids.iter().filter(|&&id|id==ONE_HIT_SHIELD).count();
+  assert!(shields>0);
   hit[0x2c1]=0;on_guard_notification(m,h,3);assert!(!effects.ids.contains(&COUNTER));assert!(!effects.ids.contains(&RECOVERY_READY));
+  assert_eq!(effects.ids.iter().filter(|&&id|id==ONE_HIT_SHIELD).count(),shields);
   // The ordinary block can play exactly the same recoil animation, but its
   // provenance has been cleared, so its full-duration marker grants nothing.
   effects.ids.push(REACTION);assert!(!attack_guard(a));assert_eq!(free_guard(m,h),0);

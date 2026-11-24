@@ -12,6 +12,7 @@ pub const JUDGE:i32=3998;
 pub const QUERY:i32=990053;
 pub const FP_QUERY:i32=990054;
 pub const START_END_QUERY:i32=990056;
+#[path="onyx_dash.rs"] pub mod dash;
 pub const DASH_QUERY:i32=990057;
 pub const METEOR_FP:i16=10;
 pub const ARTS_FEE_RVA:usize=0x6ce5a0;
@@ -123,6 +124,7 @@ pub unsafe fn cost(context:usize,actor:usize,cost:i32,base:usize)->i32{
 }
 pub fn reset(){NETWORK_OWNED.store(false,Ordering::Release);GIVEN.store(false,Ordering::Release);ACTION.with(|a|a.set((0,-1,false)));}
 pub unsafe fn update(actor:usize,base:usize){
+ dash::update(actor);
  let owns=owned(actor,base);
  if NETWORK_OWNED.swap(owns,Ordering::AcqRel)!=owns{
   // Existing randomized Onyx instances must immediately publish the effective

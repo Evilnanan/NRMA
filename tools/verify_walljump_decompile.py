@@ -10,15 +10,15 @@ ids=sorted({1255,*[f['functionId'] for f in report['functions']]})
 for source,dest in [(root/'assets/original/action/script/c0000.hks',old),(root/'dist/mod/action/script/c0000.hks',new)]:
  subprocess.run([str(exe),str(source),'--included-function-ids',*[str(i) for i in ids],'-o',str(dest)],check=True,cwd=root)
 a=old.read_text(encoding='utf-8-sig');b=new.read_text(encoding='utf-8-sig')
-prefix='    if env(1116, 95000800) == TRUE then\n        ISENABLE_WALLJUMP = TRUE\n    end\n'
+prefix='    if env(990008, 95000800) == TRUE then\n        ISENABLE_WALLJUMP = TRUE\n    end\n'
 assert b.count(prefix)==2, 'JumpCommonFunction and ExecWallJump'
 for _ in range(2):
  b=b.replace(prefix,'',1)
-prefix='    if env(1116, 95000800) == TRUE and env(201) ~= TRUE and ExecWallJump() == TRUE then\n        return\n    end\n'
+prefix='    if env(990008, 95000800) == TRUE and env(201) ~= TRUE and ExecWallJump() == TRUE then\n        return\n    end\n'
 assert b.count(prefix)==2, 'Early and late cancel retry'
 for _ in range(2):
  b=b.replace(prefix,'',1)
-early='''    if env(1116, 95000800) == TRUE and env(201) ~= TRUE and ExecWallJump() == TRUE then
+early='''    if env(990008, 95000800) == TRUE and env(201) ~= TRUE and ExecWallJump() == TRUE then
         return TRUE
     end
 '''

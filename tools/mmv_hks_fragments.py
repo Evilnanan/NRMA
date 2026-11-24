@@ -76,6 +76,8 @@ class Fragment:
                     raise ValueError('Open or multi-result call needs an explicit adapter')
                 call = f'{reg(a)}(' + ', '.join(reg(i) for i in range(a + 1, a + b)) + ')'
                 statement = f'{dest(a)} = {call}' if c == 2 else call
+            elif op == 44:  # MUL, also used by native ExecTravelMagnification
+                statement = f'{dest(a)} = {reg(b)} * {rk(c)}'
             elif op in (4, 57):
                 expression = f'{rk(b)} == {rk(c)}' if op == 4 else f'{literal(constants[b])} < {rk(c)}'
                 # When the predicate differs from A, HKS skips the next instruction.

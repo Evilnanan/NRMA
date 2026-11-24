@@ -903,7 +903,8 @@
       "name": "割草",
       "enabled": false,
       "reason": "使用普通动作／武器专属行为或缺少公共记录，需进一步核对跨武器移植",
-      "evidenceSha256": "ea3e1db5d89e9735c0283bbbb1c342c41a9df11194c78e106e7e44e7c59105d1"
+      "evidenceSha256": "ea3e1db5d89e9735c0283bbbb1c342c41a9df11194c78e106e7e44e7c59105d1",
+      "reviewedFeintSha256": "c96d4181d09c1f6e843874dc724f43765d96a1d7fc218abd3913f436006e56da"
     },
     {
       "id": 5470,

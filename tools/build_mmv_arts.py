@@ -83,7 +83,8 @@ def generate(raw, profile, native):
     added=[]; mapping=[]; added_bows=[]; ammo_judges=set()
     for record in reviewed:
         mid=record['id']; art=arts[mid]
-        if evidence(raw,mid)!=record['evidenceSha256']:
+        # Some reviewed clips also carry the Jiahao feint window and follow-up marker.
+        if evidence(raw,mid) not in (record['evidenceSha256'], record.get('reviewedFeintSha256')):
             raise ValueError(f'Reviewed art/TAE/common behavior changed: {mid}')
         if not record['enabled']:
             if not record['reason']: raise ValueError(f'Missing exclusion reason: {mid}')

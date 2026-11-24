@@ -18,7 +18,7 @@ unsafe extern "system" fn melee(actor:usize,stats:usize,delta:i32,weapon:i32,beh
  let base=BASE.load(Ordering::Acquire);
  let add:unsafe extern "system" fn(usize,i32,u8)=std::mem::transmute(base+crate::STAMINA_ADD_RVA);
  let eligible=ACTIVE.load(Ordering::Acquire)&&delta<=0&&delta!=i32::MIN&&stats!=0&&crate::is_local(actor,base)&&crate::native_actor::stats(actor)==stats;
- let adjusted=if eligible{-crate::lightning_ram::action_cost(actor,behavior,weapon,-delta,base).unwrap_or_else(||crate::onyx_mastery::melee_cost(actor,weapon,behavior,-delta,base))}else{delta};
+ let adjusted=if eligible{-crate::lightning_ram::action_cost(actor,behavior,weapon,-delta,base).unwrap_or_else(||crate::flowing_swordsman::cost(actor,weapon,behavior,crate::onyx_mastery::melee_cost(actor,weapon,behavior,-delta,base),base))}else{delta};
  add(stats,adjusted,0);
 }
 // Native melee hitbox creation pays separately from bullet/spell contexts.
@@ -68,7 +68,8 @@ unsafe extern "system" fn consume(context:usize,stats:usize,delta:i32,force:u8){
   add(stats,delta,force);return;
  }
  if roll_payment(context,actor,stats,delta,force,base){return;}
- let delta=-crate::onyx_mastery::cost(context,actor,-delta,base);
+ let cost=crate::onyx_mastery::cost(context,actor,-delta,base);
+ let delta=-crate::flowing_swordsman::context_cost(context,actor,cost,base);
  if storm(context,actor,base){force_debit(stats,-delta);return;}
  let extra=crate::echo_cost::extra(context,-delta,base);
  add(stats,delta,force);

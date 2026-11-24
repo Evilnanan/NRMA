@@ -77,6 +77,8 @@ NRMA 从 NRHex 的 `c83f552` 迁移。Git 保存源码、配置、原生输入�
 
 将 ZIP 直接解压到匹配版本的 MMV 根目录，让 `Mayhem Augments.me3` 和 MMV 自带的启动入口并列。通过 `Mayhem Augments.me3` 启动。当前本机入口启用的独立 MMV-Fixes 会一并打包。
 
+MMV 参数和文本首次合并并回读后，会保存在 `work/compat/mmv/param-text-cache.zip`。再次构建时会按文件内容核对原版、独立版、MMV 输入、参数定义及构建工具。匹配时恢复最初合并的五个文件，供后续适配步骤使用。缓存缺失或损坏时自动重新合并。
+
 ## 工具和环境
 
 构建使用 PowerShell、Python、.NET 10、Rust Windows 工具链、Smithbox/SoulsFormats、ME3，以及需要动作反编译时的 DSLuaDecompiler。Python 依赖见 `tools/requirements.txt`。原始 EXE 与 regulation 必须匹配项目验证的版本。

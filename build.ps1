@@ -56,6 +56,10 @@ try {
         python -X utf8 tools/tested_build.py snapshot standalone --before $receiptStart
         if ($LASTEXITCODE -ne 0) { throw 'Cannot snapshot standalone build inputs.' }
     }
+    $hexBuildOutput = Join-Path $PSScriptRoot '.work/build-tools/HexBuild'
+    dotnet build tools/HexBuild --nologo --output $hexBuildOutput
+    if ($LASTEXITCODE -ne 0) { throw 'HexBuild compilation failed.' }
+    $hexBuildDll = Join-Path $hexBuildOutput 'HexBuild.dll'
     if (-not $DllOnly) {
         New-Item -ItemType Directory -Path 'dist/reports' -Force | Out-Null
         foreach ($taskFolder in @('.work/arts', '.work/hks', '.work/actions', '.work/effects', '.work/combat', '.work/rewards', '.work/defs', '.work/backstep', '.work/behavior', '.work/icons')) {
@@ -67,39 +71,37 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Original skill data export failed.' }
         & python -X utf8 tools/build_arts_data.py
         if ($LASTEXITCODE -ne 0) { throw 'Skill pool build failed.' }
-        dotnet run --project tools/HexBuild/HexBuild.csproj -- $PSScriptRoot
+        dotnet $hexBuildDll $PSScriptRoot
         if ($LASTEXITCODE -ne 0) { throw 'Parameter/event/text build failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --onyx-check
-        if ($LASTEXITCODE -ne 0) { throw 'Onyx mastery resource validation failed.' }
+        & python -X utf8 tools/verify_cage_flag_storage.py
+        if ($LASTEXITCODE -ne 0) { throw 'Monster Cage native flag storage validation failed.' }
         python -X utf8 tools/verify_cage_groups.py
         if ($LASTEXITCODE -ne 0) { throw 'Cage group lifecycle/HUD/native reward verification failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --effect-sync-probe
+        dotnet $hexBuildDll $PSScriptRoot --effect-sync-probe
         if ($LASTEXITCODE -ne 0) { throw 'Effect synchronization parameter readback failed.' }
         python -X utf8 tools/verify_effect_sync_native.py --full-build
         if ($LASTEXITCODE -ne 0) { throw 'Native effect synchronization verification failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --red-envelope-rewards-check
+        dotnet $hexBuildDll $PSScriptRoot --red-envelope-rewards-check
         if ($LASTEXITCODE -ne 0) { throw 'Red Envelope native rewards readback failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --essence-reaver-check
+        dotnet $hexBuildDll $PSScriptRoot --essence-reaver-check
         if ($LASTEXITCODE -ne 0) { throw 'Essence Reaver parameter/lifecycle readback failed.' }
         python -X utf8 tools/verify_essence_reaver.py --installed
         if ($LASTEXITCODE -ne 0) { throw 'Essence Reaver native stacking/HUD/reset validation failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --cage-hp-check
+        dotnet $hexBuildDll $PSScriptRoot --cage-hp-check
         if ($LASTEXITCODE -ne 0) { throw 'Cage local correction parameter readback failed.' }
         & python -X utf8 tools/verify_cage_hp_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Native cage multiplayer correction verification failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --contract-heart-probe
+        dotnet $hexBuildDll $PSScriptRoot --contract-heart-probe
         if ($LASTEXITCODE -ne 0) { throw 'Contract and branch native parameter export failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --contract-heart-check
+        dotnet $hexBuildDll $PSScriptRoot --contract-heart-check
         if ($LASTEXITCODE -ne 0) { throw 'Contract and branch effect/event readback failed.' }
         python -X utf8 tools/verify_contract_heart_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Native on-hit self-damage verification failed.' }
         & python -X utf8 tools/verify_cage_network_native.py --full-build
         if ($LASTEXITCODE -ne 0) { throw 'Monster Cage native network packet regression failed.' }
-        & python -X utf8 tools/verify_cage_flag_storage.py
-        if ($LASTEXITCODE -ne 0) { throw 'Monster Cage native flag storage validation failed.' }
         & python -X utf8 tools/verify_cage_mutation.py
         if ($LASTEXITCODE -ne 0) { throw 'Monster Cage map/event/reward validation failed.' }
-        dotnet run --project tools/HexBuild/HexBuild.csproj -- $PSScriptRoot --cat-jump-probe
+        dotnet $hexBuildDll $PSScriptRoot --cat-jump-probe
         if ($LASTEXITCODE -ne 0) { throw 'Original cat jump parameters failed.' }
         & python -X utf8 tools/verify_cat_jump_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Native cat jump height validation failed.' }
@@ -135,17 +137,17 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Native Strength dispatch validation failed.' }
         & python -X utf8 tools/verify_crystal_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Native Crystal Shell cleanup validation failed.' }
-        dotnet run --project tools/HexBuild/HexBuild.csproj -- $PSScriptRoot --sword-category-probe --sword-test-probe --export-native-fixtures
+        dotnet $hexBuildDll $PSScriptRoot --sword-category-probe --sword-test-probe --export-native-fixtures
         if ($LASTEXITCODE -ne 0) { throw 'Native sword AttackRate fixture export failed.' }
-        dotnet run --project tools/HexBuild/HexBuild.csproj -- $PSScriptRoot --sword-charge-damage-probe
+        dotnet $hexBuildDll $PSScriptRoot --sword-charge-damage-probe
         if ($LASTEXITCODE -ne 0) { throw 'Native sword charged damage fixture export failed.' }
         & python -X utf8 tools/verify_sword_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Native sword category/magic binding validation failed.' }
-        dotnet run --project tools/HexBuild/HexBuild.csproj -- $PSScriptRoot --sword-regain-probe
+        dotnet $hexBuildDll $PSScriptRoot --sword-regain-probe
         if ($LASTEXITCODE -ne 0) { throw 'Native regain tier fixture export failed.' }
         & python -X utf8 tools/verify_sword_regain_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Native sword regain validation failed.' }
-        dotnet run --project tools/HexBuild/HexBuild.csproj -- $PSScriptRoot --escape-probe
+        dotnet $hexBuildDll $PSScriptRoot --escape-probe
         if ($LASTEXITCODE -ne 0) { throw 'Original low-HP effect export failed.' }
         & python -X utf8 tools/verify_escape_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Escape native speed/low-HP validation failed.' }
@@ -155,7 +157,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Jiahao HKS action patch failed.' }
         dotnet run --project tools/JiahaoTae/JiahaoTae.csproj -- $PSScriptRoot
         if ($LASTEXITCODE -ne 0) { throw 'Jiahao native backstep animation patch failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --jiahao-followup
+        dotnet $hexBuildDll $PSScriptRoot --jiahao-followup
         if ($LASTEXITCODE -ne 0) { throw 'Jiahao early attack window patch failed.' }
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'work/jiahao-followup/standalone/mod/chr/c0000.anibnd.dcx') -Destination (Join-Path $PSScriptRoot 'dist/mod/chr/c0000.anibnd.dcx') -Force
         & python -X utf8 tools/verify_jiahao.py
@@ -166,7 +168,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Skill stance re-entry patch failed.' }
         & python -X utf8 tools/verify_arts.py
         if ($LASTEXITCODE -ne 0) { throw 'Skill native/script verification failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --storm-audio-probe
+        dotnet $hexBuildDll $PSScriptRoot --storm-audio-probe
         if ($LASTEXITCODE -ne 0) { throw 'Storm Ruler native sound-bank probe failed.' }
         python -X utf8 tools/verify_storm_audio.py
         if ($LASTEXITCODE -ne 0) { throw 'Storm Ruler sound-bank validation failed.' }
@@ -188,7 +190,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Balloon and Revenant action notifications failed.' }
         & python -X utf8 tools/build_death_dance_flask_hks.py --inplace
         if ($LASTEXITCODE -ne 0) { throw 'Death Dance native gradual Flask branch failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --death-dance-flask-check
+        dotnet $hexBuildDll $PSScriptRoot --death-dance-flask-check
         if ($LASTEXITCODE -ne 0) { throw 'Death Dance native Flask conversion state check failed.' }
         & python -X utf8 tools/build_chant_hks.py --inplace
         if ($LASTEXITCODE -ne 0) { throw 'Chant spell charge notifications failed.' }
@@ -196,15 +198,15 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Sword casting-hand visual patch failed.' }
         & python -X utf8 tools/build_sword_recovery_hks.py --inplace
         if ($LASTEXITCODE -ne 0) { throw 'Sword spell recovery patch failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --sword-fxr-stage
+        dotnet $hexBuildDll $PSScriptRoot --sword-fxr-stage
         if ($LASTEXITCODE -ne 0) { throw 'Sword private visual resource patch failed.' }
         Copy-Item -LiteralPath '.work/sword-vfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx' -Destination 'dist/mod/sfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx' -Force
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --devils-gaze-resources
+        dotnet $hexBuildDll $PSScriptRoot --devils-gaze-resources
         if ($LASTEXITCODE -ne 0) { throw 'Native Libra resource extraction failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --devils-gaze-resources-stage
+        dotnet $hexBuildDll $PSScriptRoot --devils-gaze-resources-stage
         if ($LASTEXITCODE -ne 0) { throw 'Libra resource merge failed.' }
         Copy-Item -LiteralPath '.work/devils-gaze/staged/sfxbnd_commoneffects_dlc01.ffxbnd.dcx' -Destination 'dist/mod/sfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx' -Force
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --heart-ready-fog-resources
+        dotnet $hexBuildDll $PSScriptRoot --heart-ready-fog-resources
         if ($LASTEXITCODE -ne 0) { throw 'Heartstealer ready mist resource validation failed.' }
         Copy-Item -LiteralPath 'work/heart-ready/fog-staged/sfxbnd_commoneffects_dlc01.ffxbnd.dcx' -Destination 'dist/mod/sfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx' -Force
         python -X utf8 tools/build_archmage_hks.py --inplace
@@ -229,27 +231,27 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Archmage secondary FP native verification failed' }
         python -X utf8 tools/verify_slingshot_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Slingshot native impulse verification failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --cat-wall-check
+        dotnet $hexBuildDll $PSScriptRoot --cat-wall-check
         if ($LASTEXITCODE -ne 0) { throw 'Cat wall-jump native data readback failed.' }
         python -X utf8 tools/verify_cat_wall_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Cat wall-jump behavior and native impulse validation failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --parry-actions
+        dotnet $hexBuildDll $PSScriptRoot --parry-actions
         if ($LASTEXITCODE -ne 0) { throw 'Parry native guard window generation failed.' }
         Copy-Item -LiteralPath '.work/parry/staged/c0000.anibnd.dcx' -Destination 'dist/mod/chr/c0000.anibnd.dcx' -Force
         Copy-Item -LiteralPath '.work/parry/staged/parry_data.rs' -Destination 'src/parry_data.rs' -Force
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --parry-paired-probe
+        dotnet $hexBuildDll $PSScriptRoot --parry-paired-probe
         if ($LASTEXITCODE -ne 0) { throw 'Parry paired weapon parameter verification failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --parry-recovery-check
+        dotnet $hexBuildDll $PSScriptRoot --parry-recovery-check
         if ($LASTEXITCODE -ne 0) { throw 'Parry recovery parameter verification failed.' }
         python -X utf8 tools/verify_parry_recovery_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Parry native on-hit recovery verification failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --parry-counter-probe
+        dotnet $hexBuildDll $PSScriptRoot --parry-counter-probe
         if ($LASTEXITCODE -ne 0) { throw 'Parry counter classification verification failed.' }
         python -X utf8 tools/verify_parry_counter_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Parry native stamina debit verification failed.' }
         python -X utf8 tools/verify_parry_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Parry native guard and paired weapon verification failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --parry-followup-actions
+        dotnet $hexBuildDll $PSScriptRoot --parry-followup-actions
         if ($LASTEXITCODE -ne 0) { throw "Parry follow-up actions failed." }
         python -X utf8 tools/verify_parry_feedback_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Parry native spark instance verification failed.' }
@@ -258,15 +260,17 @@ try {
         Copy-Item -LiteralPath '.work/parry-fix/turn-native-validation.json' -Destination 'dist/reports/parry-turn-native-validation.json' -Force
         Copy-Item -LiteralPath '.work/parry-fix/spark-native-validation.json' -Destination 'dist/reports/parry-spark-native-validation.json' -Force
         Copy-Item -LiteralPath ".work/parry-fix/staged/c0000.anibnd.dcx" -Destination "dist/mod/chr/c0000.anibnd.dcx" -Force
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --night-blessing-actions
+        dotnet $hexBuildDll $PSScriptRoot --night-blessing-actions
         if ($LASTEXITCODE -ne 0) { throw 'Night blessing asset generation failed.' }
         Copy-Item -LiteralPath '.work/night-blessing/staged/c0000.anibnd.dcx' -Destination 'dist/mod/chr/c0000.anibnd.dcx' -Force
         New-Item -ItemType Directory -Force 'dist/mod/script/talk' | Out-Null
         Copy-Item -LiteralPath '.work/night-blessing/staged/m00_00_00_00.talkesdbnd.dcx' -Destination 'dist/mod/script/talk/m00_00_00_00.talkesdbnd.dcx' -Force
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --ultimate-timing-actions
+        dotnet $hexBuildDll $PSScriptRoot --ultimate-timing-actions
         if ($LASTEXITCODE -ne 0) { throw 'Ultimate formal-activation action generation failed.' }
         Copy-Item -LiteralPath 'work/ultimate-timing/staged/c0000.anibnd.dcx' -Destination 'dist/mod/chr/c0000.anibnd.dcx' -Force
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --regulation-compression
+        dotnet $hexBuildDll $PSScriptRoot --flowing-charge-actions
+        if ($LASTEXITCODE -ne 0) { throw 'Flowing Curved Sword charge window build failed.' }
+        dotnet $hexBuildDll $PSScriptRoot --regulation-compression
         if ($LASTEXITCODE -ne 0) { throw 'Regulation compression and decompressed content validation failed.' }
         python -X utf8 tools/verify_chant_hks.py
         if ($LASTEXITCODE -ne 0) { throw 'Final script is missing Chant charge notifications.' }
@@ -302,8 +306,13 @@ try {
     python -X utf8 tools/build_wraith_hks.py --check
     if ($LASTEXITCODE -ne 0) { throw 'Wraith item action observers missing.' }
     if (-not $DllOnly) {
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --marking-poison-actions
+        dotnet $hexBuildDll $PSScriptRoot --marking-poison-actions
         if ($LASTEXITCODE -ne 0) { throw 'Marking animation observer patch failed.' }
+        # JiahaoTae starts the action bundle from the original. Apply Onyx after the other overlays.
+        dotnet $hexBuildDll $PSScriptRoot --onyx-actions
+        if ($LASTEXITCODE -ne 0) { throw 'Onyx action generation failed.' }
+        dotnet $hexBuildDll $PSScriptRoot --onyx-check
+        if ($LASTEXITCODE -ne 0) { throw 'Onyx mastery resource validation failed.' }
         python -X utf8 tools/build_marking_hks.py --inplace
         if ($LASTEXITCODE -ne 0) { throw 'Marking follow-up observer patch failed.' }
     }
@@ -326,9 +335,9 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Cage escalation event and native HUD checks failed.' }
     }
     # Both modes verify the runtime; only Full regenerates game resources.
-    dotnet run --project tools/HexBuild -- $PSScriptRoot --sword-poise-check
+    dotnet $hexBuildDll $PSScriptRoot --sword-poise-check
     if ($LASTEXITCODE -ne 0) { throw 'Sword Endure protection readback failed.' }
-    dotnet run --project tools/HexBuild -- $PSScriptRoot --sword-range-catalog
+    dotnet $hexBuildDll $PSScriptRoot --sword-range-catalog
     if ($LASTEXITCODE -ne 0) { throw 'Sword automatic parameter export failed.' }
     python -X utf8 tools/build_sword_auto.py
     if ($LASTEXITCODE -ne 0) { throw 'Sword automatic balance generation failed.' }
@@ -349,7 +358,7 @@ try {
     if (-not $DllOnly) {
         python -X utf8 tools/verify_mighty_sword_native.py
         if ($LASTEXITCODE -ne 0) { throw 'Mighty/Sword native dispatch check failed.' }
-        dotnet run --project tools/HexBuild -- $PSScriptRoot --sword-charged-probe
+        dotnet $hexBuildDll $PSScriptRoot --sword-charged-probe
         if ($LASTEXITCODE -ne 0) { throw 'Sword native on-hit reference export failed.' }
         python -X utf8 tools/verify_sword_charged.py
         if ($LASTEXITCODE -ne 0) { throw 'Sword native weapon-hit rules check failed.' }

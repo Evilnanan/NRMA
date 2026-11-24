@@ -82,13 +82,13 @@ fn generated(lot:i32)->bool{
  in_range(98_000_000,true)||in_range(FLOOR_LOT,false)
 }
 // The native codec transmits the optional 12-byte record at +AC, but omits
-// the source lot at +B8. Keep its absent discriminator (-1) and use only its
-// two empty words. Restore them immediately on decode, including for relays.
+// the source lot at +B8. Both [-1,0,0] and [0,0,0] occur for choices.
+// Preserve the first word; borrow the other two only when both are empty.
 const SOURCE_TAG:u32=u32::from_le_bytes(*b"MApf");
 unsafe fn network_choice(p:usize)->bool{
  let owner=ptr::read_unaligned((p+0xaa)as*const u16);
  read_i32(p+0x58)&0x1f==0x12 && owner&0x4000!=0 && (owner>>7)&3!=0 &&
- read_i32(p+0xac)==-1
+ matches!(read_i32(p+0xac),-1|0)
 }
 pub unsafe extern "system" fn encode(descriptor:usize,stream:usize)->usize{
  let original:unsafe extern "system" fn(usize,usize)->usize=std::mem::transmute(ENCODE_ORIGINAL.load(Ordering::Acquire));
