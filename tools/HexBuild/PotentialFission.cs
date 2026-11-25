@@ -5,6 +5,7 @@ using System.Text.Json;
 // leaves remain native; no combinations of rewards or weapon effects are stored.
 static class PotentialFission {
  public const int Owner=95003200,FirstLot=98000000,FloorLot=98100000,FirstTable=98000000;
+ const int WendingGrace=700,BasicPowerPool=4200100;
  static string Name(BinderFile f)=>f.Name.Replace('\\','/').Split('/').Last();
  static int N(PARAM.Row r,string f)=>Convert.ToInt32(r[f].Value);
  static void Set(PARAM.Row r,string f,object v)=>r[f].Value=Convert.ChangeType(v,r[f].Value.GetType());
@@ -104,8 +105,8 @@ static class PotentialFission {
       if(highGoods.Contains(good)){
        int lower=good==8330104?8330103:good-1;
        if(basicGoods.Contains(lower))Set(r,"itemId",lower);else{Set(r,"itemCategory",7);Set(r,"itemId",4200100);}changed=true;
-      }else if(specialGoods.Contains(good)){
-       int replacement=4200100;
+      }else if(specialGoods.Contains(good)||(mode==2&&good==WendingGrace)){
+       int replacement=BasicPowerPool;
        if(mode==1){var keep=new PARAM.Row(r);Set(keep,"chanceWeight",1);Set(keep,"onlyForClass",0);Set(keep,"eventFlagId",0);var fallback=new PARAM.Row(keep);Set(fallback,"itemCategory",7);Set(fallback,"itemId",4200100);replacement=Publish(new[]{keep,fallback});}
        Set(r,"itemCategory",7);Set(r,"itemId",replacement);changed=true;
       }
@@ -121,7 +122,14 @@ static class PotentialFission {
    int a=FirstLot+result.Count*10,b=a+5;
    foreach(var(mode,start)in new[]{(0,a),(1,b),(2,FloorLot+result.Count*10)})for(int i=0;i<root.Rows.Length;i++){
     Check(usedLots.Add(start+i),"Fission loot collision");var row=new PARAM.Row(root.Rows[i]){ID=start+i};
-    for(int slot=1;slot<=8;slot++)if(N(row,$"lotItemBasePoint{slot:00}")>0&&N(row,$"lotItemCategory{slot:00}")==7)Set(row,$"lotItemId{slot:00}",ConvertPool(N(row,$"lotItemId{slot:00}"),mode));
+    for(int slot=1;slot<=8;slot++){
+     if(N(row,$"lotItemBasePoint{slot:00}")==0)continue;
+     string category=$"lotItemCategory{slot:00}",item=$"lotItemId{slot:00}";
+     if(N(row,category)==7)Set(row,item,ConvertPool(N(row,item),mode));
+     else if(mode==2&&N(row,category)==1&&N(row,item)==WendingGrace){
+      Set(row,category,7);Set(row,item,BasicPowerPool);
+     }
+    }
     lot.Rows.Add(row);
    }
    result.Add(new(root.Id,a,b,root.Rows.Length));
@@ -131,29 +139,34 @@ static class PotentialFission {
   var allPools=table.Rows.ToLookup(r=>r.ID);var masses=new Dictionary<int,decimal[]>();
   decimal[] Mass(int id){
    if(masses.TryGetValue(id,out var saved))return saved;
-   var value=new decimal[5];
+   var value=new decimal[6];
    if(high.ContainsKey(id)){value[0]=1;return masses[id]=value;}
    if(special.Contains(id)){value[1]=1;return masses[id]=value;}
    var rows=allPools[id].Where(r=>N(r,"chanceWeight")>0).ToArray();decimal sum=rows.Sum(r=>(decimal)N(r,"chanceWeight"));
-   foreach(var r in rows){var branch=new decimal[5];int category=N(r,"itemCategory"),item=N(r,"itemId");
+   foreach(var r in rows){var branch=new decimal[6];int category=N(r,"itemCategory"),item=N(r,"itemId");
     if(category==7)branch=Mass(item);
-    else if(category==1){if(highGoods.Contains(item))branch[0]=1;else if(specialGoods.Contains(item))branch[1]=1;}
+    else if(category==1){if(highGoods.Contains(item))branch[0]=1;else if(specialGoods.Contains(item))branch[1]=1;else if(item==WendingGrace)branch[5]=1;}
     else if(category==6&&weapons.TryGetValue(item,out var weapon)){
      if(N(weapon,"isCursed")!=0)branch[2]=1;
      else {int grade=N(bases[N(weapon,"targetWeaponId")],"rarity");if(grade==2)branch[3]=1;else if(grade==3)branch[4]=1;}
     }
-    for(int i=0;i<5;i++)value[i]+=branch[i]*N(r,"chanceWeight")/sum;
+    for(int i=0;i<value.Length;i++)value[i]+=branch[i]*N(r,"chanceWeight")/sum;
    }return masses[id]=value;
   }
-  decimal[] LotMass(int start){var value=new decimal[5];for(int index=0;index<3;index++){
+  decimal[] LotMass(int start){var value=new decimal[6];for(int index=0;index<3;index++){
    var row=lot.Rows.SingleOrDefault(r=>r.ID==start+index);if(row==null)break;
    decimal sum=Enumerable.Range(1,8).Sum(i=>(decimal)N(row,$"lotItemBasePoint{i:00}"));
    if(sum==0)continue;
-   for(int i=1;i<=8;i++)if(N(row,$"lotItemBasePoint{i:00}")>0&&N(row,$"lotItemCategory{i:00}")==7){var branch=Mass(N(row,$"lotItemId{i:00}"));for(int k=0;k<5;k++)value[k]+=branch[k]*N(row,$"lotItemBasePoint{i:00}")/sum;}
+   for(int i=1;i<=8;i++){
+    int weight=N(row,$"lotItemBasePoint{i:00}");if(weight==0)continue;
+    int category=N(row,$"lotItemCategory{i:00}"),item=N(row,$"lotItemId{i:00}");
+    if(category==7){var branch=Mass(item);for(int k=0;k<value.Length;k++)value[k]+=branch[k]*weight/sum;}
+    else if(category==1&&item==WendingGrace)value[5]+=weight/sum;
+   }
   }return value;}
   foreach(var r in result){var before=LotMass(r.Source);foreach(var(mode,start)in new[]{(0,r.A),(1,r.B)}){
    var after=LotMass(start);decimal factor=mode==0?0m:0.5m;
-   foreach(var(actual,wanted)in new[]{(after[0],0m),(after[1],before[1]*factor),(after[2],before[2]*factor),(after[3],before[4]),(after[4],0m)})
+   foreach(var(actual,wanted)in new[]{(after[0],0m),(after[1],before[1]*factor),(after[2],before[2]*factor),(after[3],before[4]),(after[4],0m),(after[5],before[5])})
     Check(Math.Abs(actual-wanted)<0.000000000001m,$"Downgrade probability audit failed: {r.Source}/{mode}: {actual} != {wanted}");
   }}
   for(int i=0;i<result.Count;i++)
