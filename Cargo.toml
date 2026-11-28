@@ -1,6 +1,6 @@
 [package]
 name = "mayhem-augments"
-version = "0.17.402"
+version = "0.17.403"
 edition = "2021"
 publish = false
 

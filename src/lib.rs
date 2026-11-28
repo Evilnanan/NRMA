@@ -252,7 +252,7 @@ static REWARD_CREATE_ORIG: AtomicPtr<u8> = AtomicPtr::new(ptr::null_mut());
 static NEXT_LEVEL_CHECK: AtomicU64 = AtomicU64::new(0);
 static LEVEL_DELIVERY: OnceLock<Mutex<level_rewards::Delivery>> = OnceLock::new();
 static REWARD_RECOVERY:OnceLock<Mutex<reward_recovery::Recovery>>=OnceLock::new();
-thread_local! { static PERSONAL_REWARD: Cell<personal_reward::Scope> = const { Cell::new(personal_reward::Scope { manager:0, lot:0, slot:0, created:0, choices:None, attempted:0, created_mask:0, nodes:[0;3] }) }; }
+thread_local! { static PERSONAL_REWARD: Cell<personal_reward::Scope> = const { Cell::new(personal_reward::Scope { manager:0, lot:0, slot:0, source:None, created:0, choices:None, attempted:0, created_mask:0, nodes:[0;3] }) }; }
 static CAT: OnceLock<Mutex<cat::Cat>> = OnceLock::new();
 static CAT_LANDING:OnceLock<Mutex<cat_jump::Landing>>=OnceLock::new();
 static SWORD_BONUSES: OnceLock<sword::Bonuses> = OnceLock::new();
@@ -400,7 +400,7 @@ const NEW_392810_PATTERN:&str="48 89 5C 24 10 48 89 74 24 18 55 57 41 56 48 8D 6
 const NEW_66C7D0_PATTERN:&str="40 53 48 83 EC 20 48 8B 81 A0 05 00 00 48 85 C0 75 05 E8 D9 00 BA FF 8B 58 08 E8 D1 19 B9 FF 84";
 
 const NEAR_DEATH_STATE_PATTERN:&str="80 B9 10 07 00 00 01 0F 94 C0 C3";
-fn signatures()->[(&'static str,u32);272] {
+fn signatures()->[(&'static str,u32);275] {
  [(phantom_combo::visual::MATERIAL_PATTERN,phantom_combo::visual::MATERIAL_RVA as u32),(phantom_combo_points::SOURCE_PATTERN,phantom_combo_points::SOURCE_RVA as u32),(phantom_combo::visual::TICK_PATTERN,phantom_combo::visual::TICK_RVA as u32),(phantom_combo_points::DISPATCH_PATTERN,phantom_combo_points::DISPATCH_RVA as u32),(phantom_combo_points::CHECK_PATTERN,phantom_combo_points::CHECK_RVA as u32),
   (impact::REBUILD_PATTERN,impact::REBUILD_RVA as u32),(ram_damage::PATTERN,ram_damage::RVA as u32),
   (night_blessing::COLLECT_PATTERN,night_blessing::COLLECT_RVA as u32),
@@ -422,6 +422,7 @@ fn signatures()->[(&'static str,u32);272] {
   (sword_projectile::PARAM_PATTERN,sword_projectile::PARAM_RVA as u32),
   (sword_projectile::MOTION_PATTERN,sword_projectile::MOTION_RVA as u32),
   (potential_fission::PICKUP_PATTERN,potential_fission::PICKUP_RVA as u32),(potential_fission::PLACE_PATTERN,potential_fission::PLACE_RVA as u32),(potential_fission::REMOVE_GROUP_PATTERN,potential_fission::REMOVE_GROUP_RVA as u32),
+  (potential_fission::claim::ACK_PATTERN,potential_fission::claim::ACK_RVA as u32),(potential_fission::claim::REMOVAL_PATTERN,potential_fission::claim::REMOVAL_RVA as u32),(potential_fission::claim::BROADCAST_PATTERN,potential_fission::claim::BROADCAST_RVA as u32),
   (potential_fission::ENCODE_PATTERN,potential_fission::ENCODE_RVA as u32),(potential_fission::DECODE_PATTERN,potential_fission::DECODE_RVA as u32),
   (fission_sync::LOCAL_PATTERN,fission_sync::LOCAL_RVA as u32),(fission_sync::REQUEST_PATTERN,fission_sync::REQUEST_RVA as u32),
   (fission_sync::HANDOVER_PATTERN,fission_sync::HANDOVER_RVA as u32),(fission_sync::RESEND_PATTERN,fission_sync::RESEND_RVA as u32),
@@ -830,6 +831,7 @@ unsafe extern "system" fn worker(_:*mut c_void)->u32 {
   arts_transfer_prepared.extend(cage_lifecycle_probe::prepare(base as usize)?);
   arts_transfer_prepared.extend(ram_sync::prepare(base as usize)?);
   arts_transfer_prepared.extend(fission_sync::prepare(base as usize)?);
+  arts_transfer_prepared.extend(potential_fission::claim::prepare(base as usize)?);
   #[cfg(feature="ram-sync-probe")]
   arts_transfer_prepared.extend(ram_sync_probe::prepare(base as usize)?);
   #[cfg(feature="cage-demand")]
@@ -2181,7 +2183,11 @@ unsafe extern "system" fn reward_create_detour(manager:usize,descriptor:usize)->
  if let Some(result)=wraith::place(manager,descriptor,original){return result;}
  if let Some(result)=potential_fission::route(manager,descriptor,original){return result;}
  arts_bind_drop(descriptor);
- red_envelope::observe_dispatch(manager,descriptor);
+ if let Some(source)=red_envelope::observe_dispatch(manager,descriptor){
+  let mut copy=ptr::read_unaligned(descriptor as *const [u64;24]);
+  copy[0x60/8]=source;
+  return original(manager,copy.as_ptr() as usize);
+ }
  let scope=PERSONAL_REWARD.with(Cell::get);
  if descriptor==0||scope.manager==0||manager!=scope.manager {return original(manager,descriptor);}
  let kind=ptr::read_unaligned((descriptor+0x58) as *const u32);
@@ -2198,12 +2204,19 @@ unsafe extern "system" fn reward_create_detour(manager:usize,descriptor:usize)->
     PERSONAL_REWARD.with(|c|{let mut s=c.get();s.attempted|=1<<index;c.set(s);});
     Some(0x40000000|choices[index]as u32)
    }else{None};
+   let source_field=(descriptor+0x60)as*mut u64;
+   let old_source=scope.source.map(|source|{
+    let old=ptr::read_unaligned(source_field);
+    ptr::write_unaligned(source_field,source);
+    old
+   });
    ptr::write_unaligned((descriptor+0x58)as*mut u32,flags);
    if let Some(good)=replacement{ptr::write_unaligned((descriptor+8)as*mut u32,good);}
    let node=original(manager,descriptor);
-   // The caller owns/reuses the descriptor; restore both temporary fields.
+   // The caller owns/reuses the descriptor; restore all temporary fields.
    ptr::write_unaligned((descriptor+0x58)as*mut u32,kind);
    if replacement.is_some(){ptr::write_unaligned((descriptor+8)as*mut u32,old_good);}
+   if let Some(source)=old_source{ptr::write_unaligned(source_field,source);}
    if node!=0{PERSONAL_REWARD.with(|c|{let mut s=c.get();if let Some(entry)=s.nodes.get_mut(s.created as usize){*entry=node;}s.created+=1;if replacement.is_some(){s.created_mask|=1<<index;}c.set(s);});}
    node
   }
@@ -2282,9 +2295,10 @@ unsafe fn spawn_personal_lot_kind(player:usize,base:usize,lot:i32,choices:Option
  if item_man==0||game_data==0{return 0;}
  let data=read_ptr(game_data+8);if data==0{return 0;}
  let slot=read_i32(data+8).max(1);if slot>3{return 0;}
- let scope=personal_reward::Scope{manager:item_man,lot,slot:slot as u8,choices,..Default::default()};
  let previous=PERSONAL_REWARD.with(Cell::get);
  if previous.manager!=0{return 0;}
+ let source=matches!(lot,onyx_mastery::LOT|flowing_swordsman::LOT).then(||personal_reward::next_source(0));
+ let scope=personal_reward::Scope{manager:item_man,lot,slot:slot as u8,source,choices,..Default::default()};
  PERSONAL_REWARD.with(|c|c.set(scope));
  type Spawn=unsafe extern "system" fn(usize,usize,i32,u8,u8,u8,u8,*const f32)->u8;
  let spawn:Spawn=std::mem::transmute(base+SPAWN_RVA);
@@ -2716,10 +2730,10 @@ mod tests {
   assert_eq!(reward_create_detour(43,address),43+address);
   PERSONAL_REWARD.with(|c|c.set(personal_reward::Scope::default()));
   ptr::write_unaligned(lot,red_envelope::LOTS[0]);ptr::write_unaligned(flags,0xfedcba12);
-  assert_eq!(red_envelope::dispatch(42,red_envelope::LOTS[0],||{
+  assert_eq!(red_envelope::dispatch(42,red_envelope::LOTS[0],1,||{
    for slot in 1..=3{for _ in 0..3{
     ptr::write_unaligned(owner,0x40|(slot<<7));let before=descriptor;
-    assert_eq!(reward_create_detour(42,address),42+address);assert_eq!(descriptor,before);
+    assert_ne!(reward_create_detour(42,address),42+address);assert_eq!(descriptor,before);
    }}
   }),9);
  }}

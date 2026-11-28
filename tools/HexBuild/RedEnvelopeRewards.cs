@@ -35,7 +35,7 @@ static partial class RedEnvelope {
    var r=effects.Rows.Single(r=>r.ID==id);
    foreach(var (f,v) in new (string,object)[]{("maxHpRate",1f),("maxMpRate",1f),("stateInfo",0),("soul",0),("spCategory",20),("saveCategory",10),("effectEndurance",-1f),("dontDeleteOnDead",1),("isDisableNetSync",1),("iconId",-1),("spEffectTextId_1",-1),("displayIconForPermamentEffect",0)})Check(Convert.ToDouble(r[f].Value)==Convert.ToDouble(v),$"Nonneutral receipt {id}/{f}");
   }
-  Check(Convert.ToInt32(effects.Rows.Single(r=>r.ID==95000102)["soul"].Value)==88888,"Original rune payout changed");
+  Check(Convert.ToInt32(effects.Rows.Single(r=>r.ID==Grant)["soul"].Value)==RuneAmount,"Unexpected rune payout");
  }
  public static void CheckRewards(string root,BND4 native,Func<string,Memory<byte>,PARAM> parse){
   VerifyRewards(native,SFUtil.DecryptNightreignRegulation(Path.Combine(root,"dist/mod/regulation.bin")),parse);
@@ -45,7 +45,7 @@ static partial class RedEnvelope {
    foreach(int effect in Enumerable.Range(FirstReceipt,4))Check(e.Instructions.Count(i=>i.Bank==2004&&i.ID==21&&BitConverter.ToInt32(i.ArgData,4)==effect)==1,"Missing/duplicate reward reset removal");
    Check(e.Instructions.Count(i=>i.Bank==2004&&i.ID==8&&BitConverter.ToInt32(i.ArgData,4)==RewardReset)==1,"Missing reward reset notification");
   }
-  Console.WriteLine("PASS: installed Red Envelope lotteries exactly match both native outdoor reward groups; neutral saved receipts, guarded reset and original 88888 rune payout verified");
+  Console.WriteLine($"PASS: installed Red Envelope lotteries exactly match both native outdoor reward groups; neutral saved receipts, guarded reset and {RuneAmount} rune payout verified");
  }
  public static void StageRewards(string root,BND4 native,Func<string,Memory<byte>,PARAM> parse){
   string dir=Path.Combine(root,".work/red-envelope-rewards/staged");Directory.CreateDirectory(dir);

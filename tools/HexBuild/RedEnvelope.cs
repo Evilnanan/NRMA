@@ -3,7 +3,8 @@ using System.Text.Json;
 using System.Security.Cryptography;
 
 static partial class RedEnvelope {
- const int Grant=95000102,Vfx=104392;
+ public const int Grant=95000102,RuneAmount=50_000;
+ const int Vfx=104392;
  static void Check(bool ok,string why){if(!ok)throw new InvalidDataException(why);}
  static string Hash(string path)=>Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
  public static void Apply(PARAM effects,PARAM visuals){
@@ -14,7 +15,7 @@ static partial class RedEnvelope {
   var visual=visuals.Rows.Single(r=>r.ID==Vfx);
   Check(Convert.ToInt32(visual["initSfxId"].Value)==43&&Convert.ToInt32(visual["initDmyId"].Value)==220&&Convert.ToInt32(visual["midstSfxId"].Value)==-1&&Convert.ToInt32(visual["finishSfxId"].Value)==-1,"Native rune acquisition VFX changed");
   var row=effects.Rows.Single(r=>r.ID==Grant);
-  Check(Convert.ToInt32(row["soul"].Value)==88888&&Convert.ToSingle(row["effectEndurance"].Value)==0f&&Convert.ToInt32(row["replaceSpEffectId"].Value)==-1&&Convert.ToInt32(row["cycleOccurrenceSpEffectId"].Value)==-1,"Unexpected Red Envelope payout");
+  Check(Convert.ToInt32(row["soul"].Value)==RuneAmount&&Convert.ToSingle(row["effectEndurance"].Value)==0f&&Convert.ToInt32(row["replaceSpEffectId"].Value)==-1&&Convert.ToInt32(row["cycleOccurrenceSpEffectId"].Value)==-1,"Unexpected Red Envelope payout");
   Check(Convert.ToInt32(row["vfxId"].Value) is -1 or Vfx,"Unexpected Red Envelope visual");
   row["vfxId"].Value=Vfx;
  }
@@ -32,14 +33,16 @@ static partial class RedEnvelope {
   },new JsonSerializerOptions{WriteIndented=true}));
   Console.WriteLine("PASS: native rune grant effects, linked VFX and Rune of the Strong goods exported");
  }
- public static void Stage(string root,Func<string,Memory<byte>,PARAM> parse){
-  string dir=Path.Combine(root,".work/red-envelope/staged");Directory.CreateDirectory(dir);
-  string input=Path.Combine(root,"dist/mod/regulation.bin"),output=Path.Combine(dir,"regulation.bin");
+ public static void Stage(string root,Func<string,Memory<byte>,PARAM> parse,bool mmv){
+  string dir=Path.Combine(root,".work/red-envelope",mmv?"staged-mmv":"staged");Directory.CreateDirectory(dir);
+  string inputMod=Path.Combine(root,mmv?"dist/mmv/mod":"dist/mod");
+  string input=Path.Combine(inputMod,"regulation.bin"),output=Path.Combine(dir,"regulation.bin");
   var binder=SFUtil.DecryptNightreignRegulation(input);
   var originals=binder.Files.ToDictionary(f=>f.ID,f=>f.Bytes.ToArray());
   var file=binder.Files.Single(f=>Path.GetFileName(f.Name)=="SpEffectParam.param");
   var before=parse("SpEffectParam",file.Bytes);var effects=parse("SpEffectParam",file.Bytes);
   var visuals=parse("SpEffectVfxParam",binder.Files.Single(f=>Path.GetFileName(f.Name)=="SpEffectVfxParam.param").Bytes);
+  effects.Rows.Single(r=>r.ID==Grant)["soul"].Value=RuneAmount;
   Apply(effects,visuals);file.Bytes=effects.Write();
   SFUtil.EncryptNightreignRegulation(output,binder,binder.Compression);
   var reopened=SFUtil.DecryptNightreignRegulation(output);
@@ -54,12 +57,13 @@ static partial class RedEnvelope {
   foreach(var row in before.Rows)foreach(var cell in row.Cells){
    var actual=after[row.ID][cell.Def.InternalName].Value;
    if(row.ID==Grant&&cell.Def.InternalName=="vfxId")Check(Convert.ToInt32(actual)==Vfx,"VFX readback mismatch");
-   else Check(JsonSerializer.Serialize(actual)==JsonSerializer.Serialize(cell.Value),$"Unrelated field changed: {row.ID}/{cell.Def.InternalName}");
+   else if(row.ID==Grant&&cell.Def.InternalName=="soul")Check(Convert.ToInt32(actual)==RuneAmount,"Rune payout readback mismatch");
+   else Check(MmvCompat.SameCell(actual,cell.Value),$"Unrelated field changed: {row.ID}/{cell.Def.InternalName}");
   }
   File.WriteAllText(Path.Combine(dir,"validation.json"),JsonSerializer.Serialize(new{
    inputSha256=Hash(input),outputSha256=Hash(output),effectId=Grant,vfxId=Vfx,sfxId=43,dummyId=220,
-   runeAmount=88888,onlyPayoutVfxChanged=true,gameplayVerified=false
+   runeAmount=RuneAmount,onlyPayoutFieldsChanged=true,gameplayVerified=false
   },new JsonSerializerOptions{WriteIndented=true}));
-  Console.WriteLine("PASS: Red Envelope payout references native Rune of the Strong initial VFX; only 95000102/vfxId changed; all other parameters preserved");
+  Console.WriteLine($"PASS: Red Envelope grants {RuneAmount} runes with native Rune of the Strong initial VFX; all unrelated parameters preserved");
  }
 }

@@ -147,6 +147,9 @@ pub(crate) unsafe extern "system" fn place(manager: usize, handle: u32) {
         original(manager, handle);
         return;
     }
+    if STATE.lock().is_ok_and(|state| state.locked.contains(&handle)) {
+        return;
+    }
     let node = lookup(manager, handle, base);
     if node == 0 || handle & 0x1f != CHOICE || !generated(read_i32(node + 0xd8)) {
         original(manager, handle);

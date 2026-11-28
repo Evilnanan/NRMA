@@ -7,7 +7,7 @@ use std::sync::{
 
 const OWNER: i32 = 95005900;
 const RECEIPT: i32 = OWNER + 1;
-const LOT: i32 = 95559000;
+pub const LOT: i32 = 95559000;
 const THRESHOLDS: [i32; 4] = [17, 30, 45, 60];
 const OUTPUTS: [i32; 4] = [OWNER + 2, OWNER + 3, OWNER + 4, OWNER + 6];
 static ACC: AtomicUsize = AtomicUsize::new(0);

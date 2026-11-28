@@ -17,7 +17,7 @@
 <!-- hex:95000100 -->
 ## Red Envelope
 
-Grants 88,888 runes and awards each party member a Dormant Power.
+Grants 50,000 runes and awards each party member a Dormant Power.
 
 <!-- hex:95000200 -->
 ## Celestial Body

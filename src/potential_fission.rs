@@ -29,6 +29,8 @@ mod placement;
 pub(crate) use placement::place;
 #[path="potential_fission_sync.rs"]
 pub(crate) mod sync;
+#[path="potential_fission_claim.rs"]
+pub(crate) mod claim;
 
 pub const GROUP_RVA:usize=0x57a8c5;
 pub const GROUP_PATTERN:&str="0F B7 8A CA 00 00 00 66 0F BA E1 0E 73 0E 66 C1 E9 07 66 83 E1 03";
@@ -51,14 +53,14 @@ impl Key{
  }
 }
 #[derive(Clone,Copy,Debug,Default)]
-struct Ball{handles:[u32;3],received:u8,tier:u8}
+struct Ball{handles:[u32;3],received:u8,tier:u8,claim:Option<claim::Pending>}
 #[derive(Clone,Copy,Debug)]
 enum Phase{Original,Landing(Ball),Children}
 #[derive(Clone,Copy,Debug)]
-struct Job{key:Key,lots:[i32;2],count:u8,map:u32,position:[f32;3],masks:[u8;2],wanted:[u8;2],handles:[[u32;3];2],phase:Phase,ceiling:u8,generation:u8,scheduled:u8,grace:f32}
+struct Job{key:Key,lots:[i32;2],count:u8,map:u32,position:[f32;3],sources:[u64;2],masks:[u8;2],wanted:[u8;2],handles:[[u32;3];2],phase:Phase,ceiling:u8,generation:u8,scheduled:u8,grace:f32}
 impl Job{
  fn original(key:Key,lots:[i32;2],count:u8,map:u32,position:[f32;3])->Self{
-  Self{key,lots,count,map,position,masks:[0;2],wanted:[0;2],handles:[[0;3];2],phase:Phase::Original,ceiling:3,generation:0,scheduled:0,grace:0.25}
+  Self{key,lots,count,map,position,sources:[0;2],masks:[0;2],wanted:[0;2],handles:[[0;3];2],phase:Phase::Original,ceiling:3,generation:0,scheduled:0,grace:0.25}
  }
  fn child_position(&self,side:usize)->[f32;3]{
   let mut p=self.position;
@@ -224,13 +226,8 @@ unsafe extern "system" fn group_allowed(incoming:usize,candidate:usize)->u8{
  let incoming_key=key_for(incoming,incoming_lot);let candidate_key=key_for(candidate,candidate_lot);
  if incoming_key!=candidate_key&&(incoming_key.is_some()||candidate_key.is_some())&&STATE.lock().is_ok_and(|s|
     incoming_key.iter().chain(candidate_key.iter()).any(|k|s.originals.contains_key(k))){return 0;}
- if !same_partition(incoming_lot,candidate_lot){return 0;}
- let draw=GENERATED.with(Cell::get);
- if draw.manager!=0 && draw.lot==incoming_lot{
-  let handle=ptr::read_unaligned((candidate+0x78)as*const u32);
-  return (0..3).any(|n|draw.mask&(1<<n)!=0&&draw.handles[n]==handle)as u8;
- }
- 1
+ // Keep the lot check for previously created groups that share a source.
+ same_partition(incoming_lot,candidate_lot)as u8
 }
 #[unsafe(naked)]
 pub unsafe extern "system" fn group(){core::arch::naked_asm!(
@@ -263,6 +260,12 @@ unsafe fn lookup(items:usize,handle:u32,base:usize)->usize{
  let find:unsafe extern "system" fn(usize,u32)->usize=std::mem::transmute(base+LOOKUP_RVA);find(items,handle)
 }
 fn enqueue(job:Job){if let Ok(mut state)=STATE.lock(){state.queue.push_back(job);}}
+fn unlock_ball(key:Key,ball:Ball,original:bool){
+ if let Ok(mut state)=STATE.lock(){
+  if original{state.originals.remove(&key);}
+  for handle in ball.handles{state.locked.remove(&handle);}
+ }
+}
 unsafe fn resolve_landing(job:&mut Job,items:usize,base:usize,dt:f32)->bool{
  let original=matches!(job.phase,Phase::Original);
  let ball=match job.phase{
@@ -279,24 +282,32 @@ unsafe fn resolve_landing(job:&mut Job,items:usize,base:usize,dt:f32)->bool{
   tier=tier.max(option_tier(ptr::read_unaligned((node+0xca)as*const u16)));
   if read_ptr(node+0x18)==0{head=Some((node,handle));}
  }
- if let Some((node,_))=head{
-  // Wait for native activation even when this original has no flight animation.
-  // 5835E0 clears the flight flag at the end of the native update.
-  let flags=ptr::read_unaligned((node+0xca)as*const u16);
-  if ptr::read((node+0xf9)as*const u8)==1||(original&&(flags&0x40==0||flags&0x800==0&&job.grace>0.)){enqueue(*job);return false;}
-  job.map=ptr::read_unaligned((node+0x94)as*const u32);
-  job.position=ptr::read_unaligned((node+0x98)as*const [f32;3]);
+ let Some((node,handle))=head else{
+  unlock_ball(job.key,ball,original);
+  return false;
+ };
+ let flags=ptr::read_unaligned((node+0xca)as*const u16);
+ if original&&(flags&0x40==0||flags&0x800==0&&job.grace>0.){enqueue(*job);return false;}
+ let mode=if original&&handle&0x10!=0{claim::mode(base)}else{0};
+ if ball.claim.is_some()||mode==GUEST{
+  match claim::advance(items,base,job.key,ball,(node,handle)){
+   claim::Progress::Wait=>{enqueue(*job);return false;}
+   claim::Progress::Ready=>{}
+   claim::Progress::Cancel{remove_local}=>{
+    if remove_local{claim::remove_parent(items,base,handle,GUEST);}
+    else if let Ok(mut state)=STATE.lock(){state.seen.insert(job.key,false);}
+    unlock_ball(job.key,ball,original);
+    return false;
+   }
+  }
  }
- // Remove only the parent choice group, without invoking the award routine.
- let remove:unsafe extern "system" fn(usize,u32,u8)->u8=std::mem::transmute(base+REMOVE_GROUP_RVA);
- if let Some((_,handle))=head{if remove(items,handle,0)==0{enqueue(*job);return false;}}
- if let Ok(mut s)=STATE.lock(){
-  if original{s.originals.remove(&job.key);}
-  for h in ball.handles{s.locked.remove(&h);}
- }
- // A missing preview allocation can still deliver the owed rewards. A parent
- // which existed and was later removed by the world must never pay out again.
- if head.is_none()&&ball.handles.iter().any(|&h|h!=0){return false;}
+ // Begin the guest handshake above while the original still has flight time.
+ // 5835E0 clears the flight flag at the end of the native update.
+ if ptr::read((node+0xf9)as*const u8)==1{enqueue(*job);return false;}
+ job.map=ptr::read_unaligned((node+0x94)as*const u32);
+ job.position=ptr::read_unaligned((node+0x98)as*const [f32;3]);
+ if !claim::remove_parent(items,base,handle,mode){enqueue(*job);return false;}
+ unlock_ball(job.key,ball,original);
  let tier=tier.min(job.ceiling);
  if tier<=2{
   let floor=FLOOR_LOT+(job.lots[0]-98_000_000);
@@ -316,7 +327,10 @@ unsafe fn emit_children(mut job:Job,items:usize,player:usize,base:usize){
    if (0..3).any(|n|job.masks[i]&(1<<n)!=0&&lookup(items,job.handles[i][n],base)==0){job.masks[i]=job.wanted[i];continue;}
   }
   let position=job.child_position(i);
-  GENERATED.with(|c|c.set(Generated{origin:job.position,manager:items,lot:job.lots[i],slot,source:job.key.source,map:job.map,position,mask:job.masks[i],attempted:0,count:job.count,limit:if job.wanted[i]==0{(1<<job.count)-1}else{job.wanted[i]},handles:job.handles[i]}));
+  if job.sources[i]==0{
+   job.sources[i]=personal_reward::next_source(0);
+  }
+  GENERATED.with(|c|c.set(Generated{origin:job.position,manager:items,lot:job.lots[i],slot,source:job.sources[i],map:job.map,position,mask:job.masks[i],attempted:0,count:job.count,limit:if job.wanted[i]==0{(1<<job.count)-1}else{job.wanted[i]},handles:job.handles[i]}));
   let p=[position[0],position[1],position[2],0.];spawn(items,player,job.lots[i],0,1,1,0,p.as_ptr());
   let result=GENERATED.with(|c|{let result=c.get();c.set(previous);result});
   job.masks[i]=result.mask;job.handles[i]=result.handles;if job.wanted[i]==0{job.wanted[i]=result.attempted;}
@@ -328,7 +342,7 @@ unsafe fn emit_children(mut job:Job,items:usize,player:usize,base:usize){
   let handles=job.handles[i];
   if !handles.iter().any(|&h|h!=0)||handles.iter().any(|&h|h!=0&&lookup(items,h,base)==0){continue;}
   let mut child=Job::original(job.key,[a,b],job.count,job.map,job.child_position(i));
-  child.phase=Phase::Landing(Ball{handles,received:job.masks[i],tier:1});child.ceiling=job.ceiling;child.generation=job.generation+1;
+  child.phase=Phase::Landing(Ball{handles,received:job.masks[i],tier:1,claim:None});child.ceiling=job.ceiling;child.generation=job.generation+1;
   if let Ok(mut s)=STATE.lock(){s.locked.extend(handles.into_iter().filter(|&h|h!=0));s.queue.push_back(child);}
  }
  if job.scheduled!=3{job.grace=0.25;enqueue(job);}

@@ -1,6 +1,19 @@
 //! Scope is restricted to one synchronous custom native spawn on this thread.
+use std::sync::atomic::{AtomicU32, Ordering};
+
+pub const SOURCE_KIND: u32 = 0xe000_0000;
+static NEXT_SOURCE: AtomicU32 = AtomicU32::new(1);
+
+// Native entity lookup ignores kind 14 and the reward codec preserves it.
+// Source comparisons use all 64 bits. Reserve slot zero for local groups and
+// distinguish networked grants from different players by the generating slot.
+pub fn next_source(sender_slot: u8) -> u64 {
+    let serial = NEXT_SOURCE.fetch_add(1, Ordering::Relaxed);
+    (u64::from(serial) << 32) | u64::from(SOURCE_KIND | u32::from(sender_slot))
+}
+
 #[derive(Clone, Copy, Default)]
-pub struct Scope { pub manager: usize, pub lot: i32, pub slot: u8, pub created: u32, pub choices:Option<[i32;3]>, pub attempted:u8, pub created_mask:u8, pub nodes:[usize;3] }
+pub struct Scope { pub manager: usize, pub lot: i32, pub slot: u8, pub source:Option<u64>, pub created: u32, pub choices:Option<[i32;3]>, pub attempted:u8, pub created_mask:u8, pub nodes:[usize;3] }
 
 #[derive(Debug, PartialEq)]
 pub enum Route { Original, Skip, Local(u32) }

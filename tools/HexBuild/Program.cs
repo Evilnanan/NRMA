@@ -385,7 +385,7 @@ if(args.Contains("--ability-buffs-probe")){AbilityBuffs.Probe(root,Parse);return
 if(args.Contains("--red-envelope-rewards")){RedEnvelope.StageRewards(root,bnd,Parse);return;}
 if(args.Contains("--red-envelope-rewards-check")){RedEnvelope.CheckRewards(root,bnd,Parse);return;}
 if(args.Contains("--red-envelope-probe")){RedEnvelope.Probe(root,bnd,Parse);return;}
-if(args.Contains("--red-envelope-only")){RedEnvelope.Stage(root,Parse);return;}
+if(args.Contains("--red-envelope-only")){RedEnvelope.Stage(root,Parse,args.Contains("--mmv"));return;}
 if(args.Contains("--ultimate-vfx-probe")){UltimateRefreshVfx.Probe(root,bnd,Parse);return;}
 if(args.Contains("--ultimate-vfx-only")){UltimateRefreshVfx.Stage(root,Parse);return;}
 if(args.Contains("--ultimate-cooldown-stage")){
@@ -1124,7 +1124,7 @@ Set(escapeReady,"maxHpRate",1f);Set(escapeReady,"saveCategory",-1);Set(escapeRea
 Set(escapeReady,"spCategory",20);Set(escapeReady,"effectEndurance",2f);
 Require(Convert.ToSingle(escape["conditionHp"].Value)==-1f&&Convert.ToInt32(escape["stateInfo"].Value)==0,"Escape must not inherit a conditional damage/animation state");
 var paid=Clone("SpEffectParam",8000000,95000101);Set(paid,"maxHpRate",1f);Set(paid,"iconId",-1);Set(paid,"spEffectTextId_1",-1);
-var money=Clone("SpEffectParam",3269,95000102);Set(money,"soul",88888);
+var money=Clone("SpEffectParam",3269,RedEnvelope.Grant);Set(money,"soul",RedEnvelope.RuneAmount);
 RedEnvelope.Apply(pars["SpEffectParam"],pars["SpEffectVfxParam"]);
 RedEnvelope.Rewards(Clone);
 // Retain the old refill row for compatibility; the DLL uses the native

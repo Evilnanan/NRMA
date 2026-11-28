@@ -15,6 +15,10 @@ thread_local!{
  static UID:Cell<u32>=const{Cell::new(1)};
  static BROADCASTS:Cell<usize>=const{Cell::new(0)};
  static REJECT_PUBLIC:Cell<bool>=const{Cell::new(false)};
+ static DRAW_CREATOR:Cell<u16>=const{Cell::new(0)};
+ static CLAIM_INBOX:RefCell<VecDeque<[u8;7]>>=const{RefCell::new(VecDeque::new())};
+ static CLAIM_OUTBOX:RefCell<Vec<[u8;7]>>=const{RefCell::new(Vec::new())};
+ static CLAIM_AWARDS:RefCell<Vec<(u32,i32)>>=const{RefCell::new(Vec::new())};
 }
 pub(super) fn next_roll()->Option<usize>{ROLLS.with(|r|r.borrow_mut().pop_front()).or_else(||ROLL.with(Cell::get))}
 unsafe fn native_flight(base:usize,dt:f32){
@@ -36,7 +40,7 @@ unsafe extern "system" fn allocate(manager:usize,descriptor:usize)->usize{
  if ptr::read_unaligned((p+0xca)as*const u16)&0x800!=0{ptr::write((p+0xf9)as*mut u8,1);ptr::write_unaligned((p+0xfc)as*mut f32,0.75);}
  if read_i32(p+0x78)&15==2{
   let counter=(manager+0x10)as*mut u32;*counter+=1;
-  ptr::write_unaligned((p+0x78)as*mut u32,(*counter<<5)|2);
+  ptr::write_unaligned((p+0x78)as*mut u32,(*counter<<5)|(read_i32(p+0x78) as u32&0x1f));
  }
  let head=NODES.with(|c|c.borrow().first().map_or(0,|n|n.as_ptr()as usize));
  // Native group algorithm walks the manager's list via node+0 and builds
@@ -76,14 +80,19 @@ fn descriptor(lot:i32,slot:u8,index:u8,source:u64)->[u64;24]{unsafe{
 unsafe extern "system" fn lottery(manager:usize,_:usize,lot:i32,kind:u8,_:u8,_:u8,_:u8,_:*const f32)->u8{
  let base=IMAGE.load(Ordering::Acquire);
  let dispatch:unsafe extern "system" fn(usize,usize)->usize=std::mem::transmute(base+REWARD_CREATE_RVA);
- if crate::wraith::ground_good(lot).is_some(){assert_eq!(kind,1);}else{assert_eq!(kind,0);}
- let count=if crate::wraith::ground_good(lot).is_some(){1}else if crate::snack::bonus_lot(lot){3}else{if lot>=FLOOR_LOT{ROOTS[((lot-FLOOR_LOT)/10)as usize].3}else{ROOTS.iter().find(|r|r.1==lot||r.2==lot).unwrap().3}};
+ let gift=match lot{onyx_mastery::LOT=>Some(8010000),flowing_swordsman::LOT=>Some(7060000),_=>None};
+ let map_lot=crate::wraith::ground_good(lot).is_some()||gift.is_some();
+ assert_eq!(kind,u8::from(map_lot));
+ let count=if map_lot{1}else if crate::snack::bonus_lot(lot){3}else{if lot>=FLOOR_LOT{ROOTS[((lot-FLOOR_LOT)/10)as usize].3}else{ROOTS.iter().find(|r|r.1==lot||r.2==lot).unwrap().3}};
  for slot in 1..=3{for index in (0..count).rev(){let mut d=descriptor(lot,slot,index,999);if crate::wraith::ground_good(lot).is_some(){ptr::write_unaligned((d.as_mut_ptr()as usize+8)as*mut u32,(0x40000000|crate::wraith::ground_good(lot).unwrap())as u32);}
- if (98_000_000..FLOOR_LOT).contains(&lot){let flags=(d.as_mut_ptr()as usize+0xaa)as*mut u16;*flags=(*flags&!15)|2;}
+ let p=d.as_mut_ptr()as usize;
+ if let Some(weapon)=gift{ptr::write_unaligned((p+8)as*mut i32,weapon);}
+ let flags=(p+0xaa)as*mut u16;
+ if (98_000_000..FLOOR_LOT).contains(&lot){*flags=(*flags&!15)|2;}
+ *flags|=DRAW_CREATOR.with(Cell::get);
  let before=d;dispatch(manager,d.as_mut_ptr()as usize);assert_eq!(d,before);}}1
 }
-// Stub only the ItemData body and world-handle conversion. The actual reward
-// writer/reader still select the packet layout, advance the cursor and fill the descriptor.
+// Stub the ItemData body. Keep native handle conversion in the packet roundtrip.
 unsafe extern "system" fn encode_good(item:usize,stream:usize)->usize{
  ptr::write_unaligned(read_ptr(stream)as*mut u32,ptr::read_unaligned(item as*const u32));4
 }
@@ -91,8 +100,6 @@ unsafe extern "system" fn decode_good(item:usize,stream:usize)->u8{
  let cursor=read_ptr(stream);ptr::write_unaligned(item as*mut u32,ptr::read_unaligned(cursor as*const u32));
  ptr::write_unaligned(stream as*mut usize,cursor+4);*((stream+8)as*mut i32)-=4;1
 }
-unsafe extern "system" fn handle_out(out:usize,handle:u64)->usize{ptr::write_unaligned(out as*mut u64,handle);out}
-unsafe extern "system" fn handle_in(handle:usize,out:usize)->usize{ptr::write_unaligned(out as*mut u64,ptr::read_unaligned(handle as*const u64));out}
 unsafe extern "system" fn no_item_flag(_:usize)->u8{0}
 unsafe fn online_descriptor(lot:i32,slot:u8,index:u8,source:u64,sequence:u32,record:[u32;3],tag:bool,expected_lot:i32)->[u64;24]{
  let mut input=descriptor(lot,slot,index,source);
@@ -147,6 +154,40 @@ unsafe fn verify_envelope_and_hex(base:usize,items:usize,player:usize){
   reset();ROLL.with(|r|r.set(Some(0)));emit(base,items,envelope,1,777,3);
   assert_eq!(head_count(),1);native_flight(base,0.8);update(player,base,0.3);
   assert_eq!(head_count(),2);assert!(!unclaimed_hex_ball(base));
+ }
+}
+
+unsafe fn verify_envelope_and_weapon_sources(base:usize,items:usize,player:usize){
+ reset();NODES.with(|nodes|nodes.borrow_mut().clear());
+ ptr::write_unaligned((items+0x58)as*mut usize,0);
+ ROLL.with(|roll|roll.set(Some(3)));
+ let lot=red_envelope::LOTS[0];
+ let mut scopes=BTreeSet::new();
+ for sender_slot in [1,2,1]{
+  let mut source=0;
+  assert_eq!(red_envelope::dispatch(items,lot,sender_slot,||{
+   for recipient in [1,2]{emit(base,items,lot,recipient,999,3);}
+   source=NODES.with(|nodes|nodes.borrow().last().unwrap()[0x80/8]);
+  }),6);
+  assert_eq!(source as u32,personal_reward::SOURCE_KIND|u32::from(sender_slot));
+  assert!(scopes.insert(source));
+  // Real native source conversion must preserve the full synthetic identifier.
+  online_descriptor(lot,1,0,source,1,[0;3],true,lot);
+  NODES.with(|nodes|assert!(nodes.borrow().iter().rev().take(6).all(|node|node[0x80/8]==source)));
+ }
+ assert_eq!(head_count(),6);
+ for weapon_lot in [onyx_mastery::LOT,flowing_swordsman::LOT,onyx_mastery::LOT]{
+  assert_eq!(crate::spawn_personal_lot_kind(player,base,weapon_lot,None,1),1);
+  let source=NODES.with(|nodes|nodes.borrow().last().unwrap()[0x80/8]);
+  assert_eq!(source as u32,personal_reward::SOURCE_KIND);
+  assert!(scopes.insert(source));
+ }
+ assert_eq!(head_count(),9);
+ let claim:unsafe extern "system" fn(usize,u32,u8)->u8=std::mem::transmute(base+REMOVE_GROUP_RVA);
+ let handles=NODES.with(|nodes|nodes.borrow().iter().rev().take(3).map(|node|node[0x78/8]as u32).collect::<Vec<_>>());
+ for (index,handle) in handles.into_iter().enumerate(){
+  assert_eq!(claim(items,handle,0),1);
+  assert_eq!(head_count(),8-index);
  }
 }
 // The real dispatcher selects the host broadcast or guest request path.
@@ -222,6 +263,226 @@ unsafe fn verify_online_placement(base:usize,items:usize,data:&mut [i32]){
  reset();
  ptr::write_unaligned((base+0x3c21ec8) as *mut usize,0);
 }
+
+unsafe fn verify_independent_host_sources(base:usize,items:usize,player:usize,data:&mut [i32],creator:*mut u8){
+ reset();NODES.with(|nodes|nodes.borrow_mut().clear());
+ ptr::write_unaligned((items+0x58)as*mut usize,0);
+ let mut session=[0i32;16];session[3]=HOST;
+ let old_session=ptr::replace((base+SESSION_RVA)as*mut usize,session.as_mut_ptr()as usize);
+ let old_gate=ptr::replace((base+0x39a79b6)as*mut u8,1);
+ let old_context=ptr::replace((base+0x3c10f60)as*mut usize,0);
+ let old_creator=CREATE_ORIGINAL.swap(creator,Ordering::AcqRel);
+ jump(base,0x5803c0,allocate as *const () as usize);
+ jump(base,0x57b090,no_item_flag as *const () as usize);
+ ptr::write((base+0x5749e0)as*mut u8,0xc3);
+ let (lot,_,other_lot,count)=ROOTS[0];
+ let source=0x340a_050b_1120_0006;
+ data[2]=1;ROLL.with(|roll|roll.set(Some(0)));apply(player,OWNER,0);
+ for slot in [1,2]{
+  for index in 0..count{
+   let mut original=descriptor(lot,slot,index,source);
+   let p=original.as_mut_ptr()as usize;
+   *((p+0xaa)as*mut u16)|=0x2000;
+   assert_ne!(capture(items,p,base+0x57f42c),0);
+  }
+ }
+ let mut conflict=descriptor(other_lot,1,0,source);
+ let p=conflict.as_mut_ptr()as usize;
+ *((p+0xaa)as*mut u16)|=0x1000;
+ assert_eq!(capture(items,p,base+0x575b39),0,"native host rejects the old same-source descriptor");
+
+ DRAW_CREATOR.with(|tag|tag.set(0x1000));
+ native_flight(base,0.8);update(player,base,0.3);
+ DRAW_CREATOR.with(|tag|tag.set(0));
+ assert_eq!(head_count(),3);
+ assert!(STATE.lock().unwrap().queue.is_empty());
+ let resolve_entity:unsafe extern "system" fn(u64)->usize=std::mem::transmute(base+0x63f840);
+ let (peer,child_sources)=NODES.with(|nodes|{
+  let nodes=nodes.borrow();let mut peer=0;let mut groups=BTreeMap::new();
+  assert_eq!(nodes.len(),3*count as usize);
+  for node in nodes.iter(){
+   let p=node.as_ptr()as usize;
+   let group=ptr::read_unaligned((p+0x80)as*const u64);
+   let flags=ptr::read_unaligned((p+0xca)as*const u16);
+   if group==source{assert_eq!(flags&0x3180,0x2100);peer=p;continue;}
+   assert_eq!(flags&0x39c0,0x18c0);
+   assert_eq!(group as u32,personal_reward::SOURCE_KIND);
+   assert_eq!(resolve_entity(group),0);
+   *groups.entry(group).or_insert(0)+=1;
+  }
+  (peer,groups)
+ });
+ assert_ne!(peer,0);
+ assert_eq!(child_sources.len(),2);
+ assert!(child_sources.values().all(|&size|size==count));
+ let toggle:unsafe extern "system" fn(usize,usize,u8)->u8=std::mem::transmute(base+0x57cdd0);
+ assert_ne!(toggle(items,peer,0),0);
+ NODES.with(|nodes|for node in nodes.borrow().iter(){
+  let p=node.as_ptr() as usize;
+  let group=ptr::read_unaligned((p+0x80)as*const u64);
+  assert_eq!(ptr::read_unaligned((p+0xca)as*const u16)&0x40!=0,group!=source);
+ });
+ CREATE_ORIGINAL.store(old_creator,Ordering::Release);
+ ptr::write((base+0x39a79b6)as*mut u8,old_gate);
+ ptr::write_unaligned((base+0x3c10f60)as*mut usize,old_context);
+ ptr::write_unaligned((base+SESSION_RVA)as*mut usize,old_session);
+}
+
+const CLAIM_HOST: usize = 0x7654;
+
+unsafe extern "system" fn take_claim_packet(_:usize,channel:u32,buffer:*mut u8,size:usize,sender:*mut usize)->u32{
+ assert_eq!(channel,0x2c);
+ CLAIM_INBOX.with(|inbox|{
+  let Some(packet)=inbox.borrow_mut().pop_front() else{return 0;};
+  assert!(size>=packet.len());
+  ptr::copy_nonoverlapping(packet.as_ptr(),buffer,packet.len());
+  *sender=CLAIM_HOST;
+  packet.len() as u32
+ })
+}
+unsafe extern "system" fn send_claim_packet(_:usize,channel:u32,packet:*const [u8;7],size:u32){
+ assert_eq!((channel,size),(0x2c,7));
+ CLAIM_OUTBOX.with(|outbox|outbox.borrow_mut().push(*packet));
+}
+unsafe extern "system" fn record_claim_award(_:usize,descriptor:usize,_:usize,_:usize,_:usize,_:u8,choice:i32)->usize{
+ CLAIM_AWARDS.with(|awards|awards.borrow_mut().push((read_i32(descriptor+0x58) as u32,choice)));
+ 1
+}
+unsafe extern "system" fn empty_pickup_context(buffer:usize,_:u32){
+ ptr::write_unaligned((buffer+0x10) as *mut usize,0);
+}
+fn claim_packet(kind:u8,handle:u32)->[u8;7]{
+ let mut packet=[kind,0,0,0,0,0,0];
+ packet[3..].copy_from_slice(&handle.to_le_bytes());
+ packet
+}
+
+unsafe fn verify_network_claim(base:usize,items:usize,player:usize,data:&mut [i32],raw:&[u8],image:&pe::Headers){
+ // Keep the native eligibility check for requests, including the recipient slot.
+ let section=image.sections.iter().find(|s|s.virtual_address<=0x572c10&&0x572c10-s.virtual_address<s.raw_size).unwrap();
+ let original=(section.raw_offset+0x572c10-section.virtual_address) as usize;
+ ptr::copy_nonoverlapping(raw.as_ptr().add(original),(base+0x572c10) as *mut u8,12);
+ for (rva,dest) in [
+  (0x631530,no_item_flag as *const () as usize),
+  (0xeaa1e0,empty_pickup_context as *const () as usize),
+  (0xdf2550,send_claim_packet as *const () as usize),
+  (0xdf24d0,send_claim_packet as *const () as usize),
+  (0xdf1de0,take_claim_packet as *const () as usize),
+  (ARTS_PICKUP_RVA,record_claim_award as *const () as usize),
+ ]{jump(base,rva,dest);}
+ ptr::write((base+0x26909a0) as *mut u8,0xc3);
+ for (rva,hook) in claim::prepare(base).unwrap(){hook::write_code((base+rva) as *mut u8,&hook.patch).unwrap();}
+ let old_pickup=PICKUP_ORIGINAL.swap((base+PICKUP_RVA) as *mut u8,Ordering::AcqRel);
+ let pump:unsafe extern "system" fn(usize,f32)=std::mem::transmute(base+0x57d640);
+ let mut session=[0u64;0x100/8];
+ let mut packets=[0u8;128];
+ let mut requests=[0u32;9];
+ let queue=requests.as_mut_ptr() as usize;
+ let old_session=ptr::replace((base+SESSION_RVA) as *mut usize,session.as_mut_ptr() as usize);
+ ptr::write_unaligned((items+0x3e8) as *mut usize,packets.as_mut_ptr() as usize);
+ ptr::write_unaligned((items+0x3f0) as *mut u32,packets.len() as u32);
+ ptr::write_unaligned((items+0x468) as *mut usize,queue);
+ ptr::write_unaligned((items+0x478) as *mut usize,queue+std::mem::size_of_val(&requests));
+ session[0x10/8]=7;
+ session[0xa0/8]=CLAIM_HOST as u64;
+ let (lot,_,_,count)=ROOTS[0];
+ data[2]=2;
+ for (manual,packets,early_ack,mode) in [
+  (false,[3,7],true,GUEST),
+  (false,[7,3],true,GUEST),
+  (false,[7,3],false,GUEST),
+  (true,[7,3],true,GUEST),
+  (false,[3,0],true,GUEST), // A native removal arrives but its ACK never does.
+  (false,[0,0],true,HOST),
+ ]{
+  reset();NODES.with(|nodes|nodes.borrow_mut().clear());
+  ptr::write_unaligned((items+0x58) as *mut usize,0);
+  ptr::write_unaligned((items+0x470) as *mut usize,queue);
+  ptr::write_unaligned((items+0x43a) as *mut u16,u16::MAX);
+  ptr::write_unaligned((session.as_mut_ptr() as usize+0xc) as *mut i32,mode);
+  CLAIM_OUTBOX.with(|outbox|outbox.borrow_mut().clear());
+  CLAIM_AWARDS.with(|awards|awards.borrow_mut().clear());
+  let mut handles=Vec::new();
+  for index in 0..count{
+   let mut option=online_descriptor(lot,2,index,0x76543210,1+u32::from(index),[0;3],true,lot);
+   let node=capture(items,option.as_mut_ptr() as usize,base+0x57f046);
+   assert_ne!(node,0);
+   handles.push(read_i32(node+0x78) as u32);
+  }
+  assert_eq!(head_count(),1);
+  let handle=*handles.iter().find(|&&handle| read_ptr(lookup(items,handle,base)+0x18)==0).unwrap();
+  let sibling=*handles.iter().find(|&&other| other!=handle).unwrap();
+  if manual{
+   ptr::write_unaligned(queue as *mut [u32;3],[sibling,0,2]);
+   ptr::write_unaligned((items+0x470) as *mut usize,queue+12);
+  }
+  update(player,base,0.016);
+  assert_eq!(head_count(),1);
+  if mode==HOST{
+   assert!(CLAIM_OUTBOX.with(|outbox|outbox.borrow().is_empty()));
+   native_flight(base,0.8);update(player,base,0.016);
+   assert_eq!(head_count(),2);
+   CLAIM_OUTBOX.with(|outbox|{
+    let outbox=outbox.borrow();
+    assert_eq!(outbox.len(),1);
+    assert_eq!(outbox[0][0],3);
+    assert_eq!(outbox[0][3..],handle.to_le_bytes());
+   });
+   assert!(CLAIM_AWARDS.with(|awards|awards.borrow().is_empty()));
+   continue;
+  }
+  assert_eq!(read_ptr(items+0x470),queue+12);
+  assert_eq!(read_i32(queue) as u32,if manual{sibling}else{handle});
+  assert_eq!(CLAIM_OUTBOX.with(|outbox|outbox.borrow().len()),usize::from(!manual));
+  if !manual{
+   CLAIM_OUTBOX.with(|outbox|{
+    let outbox=outbox.borrow();
+    assert_eq!(outbox[0][0],6);
+    assert_eq!(outbox[0][3..],handle.to_le_bytes());
+   });
+   assert_eq!(pickup(items,sibling,1),0);
+  }
+  if !early_ack{
+   native_flight(base,0.8);update(player,base,0.016);
+   assert_eq!(head_count(),1,"landing without an ACK cannot split");
+  }
+  let selected=if manual{sibling}else{handle};
+  for kind in packets.into_iter().filter(|&kind|kind!=0){
+   CLAIM_INBOX.with(|inbox|inbox.borrow_mut().push_back(claim_packet(kind,selected)));
+   pump(items,0.016);
+   if kind==3&&!manual{assert_eq!(head_count(),1,"removal must preserve the flying parent");}
+   if kind==3&&packets[0]==3{assert_eq!(read_ptr(items+0x470),queue+12,"removal must preserve the request for the ACK");}
+  }
+  if manual{
+   assert_eq!(head_count(),0);
+   CLAIM_AWARDS.with(|awards|assert_eq!(*awards.borrow(),[(sibling,2)]));
+   update(player,base,0.3);
+   assert_eq!(head_count(),0);
+   continue;
+  }
+  assert!(CLAIM_AWARDS.with(|awards|awards.borrow().is_empty()));
+  if packets[1]==0{
+   ptr::write_unaligned((items+0x470) as *mut usize,queue);
+   update(player,base,0.016);
+   assert_eq!(head_count(),0,"expired request cannot split a removed parent");
+   continue;
+  }
+  assert_eq!(read_ptr(items+0x470),queue);
+  if early_ack{
+   update(player,base,0.016);
+   assert_eq!(head_count(),1,"early ACK must preserve the flying parent");
+   native_flight(base,0.8);
+  }
+  update(player,base,0.016);
+  assert_eq!(head_count(),2);
+  assert!(STATE.lock().unwrap().locked.is_empty());
+  CLAIM_INBOX.with(|inbox|inbox.borrow_mut().extend([claim_packet(7,handle),claim_packet(3,handle)]));
+  pump(items,0.016);update(player,base,0.016);
+  assert_eq!(head_count(),2,"duplicate ACK and removal cannot generate another split");
+ }
+ PICKUP_ORIGINAL.store(old_pickup,Ordering::Release);
+ ptr::write_unaligned((base+SESSION_RVA) as *mut usize,old_session);
+}
 #[test]
 #[ignore="requires NRHEX_NATIVE_EXE; maps private PE and must run alone"]
 fn compiled_fission_routes_online_draws_and_native_independent_groups(){unsafe{
@@ -231,8 +492,7 @@ fn compiled_fission_routes_online_draws_and_native_independent_groups(){unsafe{
  IMAGE.store(base,Ordering::Release);
  for(rva,dest)in [(HAS_EFFECT_RVA,has as*const()as usize),(APPLY_SELF_RVA,apply as*const()as usize),(REMOVE_EFFECT_RVA,remove as*const()as usize),(SPAWN_RVA,lottery as*const()as usize)]{jump(base,rva,dest);}
  for(rva,dest)in [(0x6c1540,encode_good as*const()as usize),(0x6c0de0,decode_good as*const()as usize),
-   (0x6c1530,no_item_flag as*const()as usize),(0x6c12c0,no_item_flag as*const()as usize),
-   (0xaec590,handle_out as*const()as usize),(0xaec6d0,handle_in as*const()as usize)]{jump(base,rva,dest);}
+   (0x6c1530,no_item_flag as*const()as usize),(0x6c12c0,no_item_flag as*const()as usize)]{jump(base,rva,dest);}
  let mut vtable=[0usize;14];vtable[3]=allocator_flags as*const()as usize;vtable[13]=free_handles as*const()as usize;
  let heap=vtable.as_ptr()as usize;CLAIM_ALLOCATOR.store(&heap as*const usize as usize,Ordering::Release);
  for(rva,dest)in [(0x214f3e0,claim_allocator as*const()as usize),(0x56d840,grow_handles as*const()as usize),(0x580f70,retire as*const()as usize)]{jump(base,rva,dest);}
@@ -341,6 +601,7 @@ fn compiled_fission_routes_online_draws_and_native_independent_groups(){unsafe{
   let count_before=head_count();for _ in 0..4{update(player,base,0.3);}assert_eq!(head_count(),count_before);
  }
  data[2]=1;verify_envelope_and_hex(base,items,player);
+ verify_envelope_and_weapon_sources(base,items,player);
  for slot in 1..=3{
   data[2]=slot;ptr::write_unaligned((items+0x58)as*mut usize,0);NODES.with(|nodes|nodes.borrow_mut().clear());
   emit(base,items,crate::snack::LOT,slot as u8,999,3);emit(base,items,crate::snack::LOT,slot as u8,999,3);
@@ -379,6 +640,8 @@ fn compiled_fission_routes_online_draws_and_native_independent_groups(){unsafe{
   assert_eq!(NODES.with(|nodes|nodes.borrow().len()),10);assert_eq!(PERSONAL_REWARD.with(|scope|scope.get().manager),0);
  }
  verify_online_placement(base,items,&mut data);
+ verify_independent_host_sources(base,items,player,&mut data,entry.trampoline);
+ verify_network_claim(base,items,player,&mut data,&raw,&h);
  ROLL.with(|r|r.set(None));
  *STATE.lock().unwrap()=old_state;BASE.store(old_base,Ordering::Release);ACTIVE.store(old_active,Ordering::Release);REWARD_CREATE_ORIG.store(old_dispatch,Ordering::Release);NODES.with(|n|n.borrow_mut().clear());VirtualFree(allocation,0,MEM_RELEASE);
 }}
