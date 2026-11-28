@@ -5,9 +5,9 @@ use std::sync::{atomic::Ordering, Mutex};
 
 pub const OWNER: i32 = 95004500;
 const LAUNCH_HEIGHT: f32 = 1.5;
-pub(crate) const NEAREST_TARGET_RVA: usize = 0x4b1350;
-pub(crate) const NEAREST_TARGET_PATTERN: &str =
-    "40 53 48 83 EC 20 45 33 C0 48 8B DA 41 8D 50 0D E8 DB 10 34 02";
+pub(crate) const TARGET_TRANSFORM_RVA: usize = 0x3d14f0;
+pub(crate) const TARGET_TRANSFORM_PATTERN: &str =
+    "48 8B 41 60 0F 10 80 40 02 00 00 0F 10 88 50 02 00 00 0F 29 02 0F 10 80 60 02 00 00 0F 29 4A 10 0F 10 88 70 02 00 00 48 8B C2 0F 29 42 20 0F 29 4A 30 C3 48 89 43 38";
 pub(crate) const ACTOR_TARGET_RVA: usize = 0x349790;
 pub(crate) const ACTOR_TARGET_PATTERN: &str =
     "48 8B C4 48 89 58 18 48 89 50 10 55 56 57 41 56 41 57 48 81 EC D0";
@@ -26,7 +26,7 @@ type Identity = (u64, usize);
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Trigger {
     victim: u64,
-    contact: Point,
+    offset: Option<Point>,
 }
 
 #[derive(Default)]
@@ -119,7 +119,7 @@ pub unsafe fn outgoing(module: usize, source: usize, hit: usize) {
         }
         Some(Trigger {
             victim: read_ptr(target + 8) as u64,
-            contact: crate::sword_hit_point(hit),
+            offset: hit_offset(target, crate::sword_hit_point(hit), base),
         })
     };
     if crate::static_charge::first_sniper_contact(module, hit) {
@@ -201,56 +201,52 @@ pub unsafe fn factory(payload: usize, base: usize) {
 #[repr(align(16))]
 struct AlignedPoint(Point);
 
-fn lock_dummy(index: u8) -> i32 {
-    if index <= 8 {
-        220 + i32::from(index)
-    } else {
-        -1
+#[repr(align(16))]
+struct TargetTransform([Point; 4]);
+
+fn world_to_target(contact: Point, transform: [Point; 4]) -> Option<Point> {
+    let [x, y, z, origin] = transform.map(V::from);
+    let delta = V::from(contact).sub(origin);
+    let normal = y.cross(z);
+    let determinant = x.dot(normal);
+    if !determinant.is_finite() || determinant.abs() < 1e-6 {
+        return None;
     }
+    let offset = V(
+        delta.dot(normal) / determinant,
+        delta.dot(z.cross(x)) / determinant,
+        delta.dot(x.cross(y)) / determinant,
+    );
+    offset
+        .finite()
+        .then_some([offset.0, offset.1, offset.2, 1.])
 }
 
-unsafe fn set_hit_target(out: *mut u8, hit: Trigger, base: usize) {
-    let resolve: unsafe extern "system" fn(u64) -> usize =
-        std::mem::transmute(base + crate::CHR_HANDLE_RVA);
-    if hit.victim == u64::MAX {
+unsafe fn hit_offset(target: usize, contact: Point, base: usize) -> Option<Point> {
+    if read_ptr(target + 0x60) == 0 || !V::from(contact).finite() {
+        return None;
+    }
+    let get_transform: unsafe extern "system" fn(usize, *mut TargetTransform) -> usize =
+        std::mem::transmute(base + TARGET_TRANSFORM_RVA);
+    let mut transform = TargetTransform([[0.; 4]; 4]);
+    get_transform(target, &mut transform);
+    world_to_target(contact, transform.0)
+}
+
+unsafe fn set_hit_target(d: &mut crate::direct_bullet::Descriptor, hit: Trigger, base: usize) {
+    if hit.victim as u32 == u32::MAX {
         return;
     }
-    let actor = resolve(hit.victim);
-    if actor == 0 || read_ptr(actor + 8) as u64 != hit.victim {
-        return;
+    let actor_target: unsafe extern "system" fn(*mut u8, u64, u8) -> usize =
+        std::mem::transmute(base + ACTOR_TARGET_RVA);
+    // Kind 2 without a lock-node reference. Native targeting multiplies the
+    // local offset at +20 by the victim's current root transform every time.
+    actor_target(d.0.as_mut_ptr().add(0xb0), hit.victim, 0);
+    if let Some(offset) = hit.offset.filter(|_| d.0[0xb0] == 2) {
+        for (field, value) in d.0[0xd0..0xe0].chunks_exact_mut(4).zip(offset) {
+            field.copy_from_slice(&value.to_le_bytes());
+        }
     }
-    let mut node = 0;
-    if V::from(hit.contact).finite() {
-        let contact = AlignedPoint(hit.contact);
-        let nearest: unsafe extern "system" fn(usize, *const f32) -> usize =
-            std::mem::transmute(base + NEAREST_TARGET_RVA);
-        node = nearest(actor + 0x338, contact.0.as_ptr());
-    }
-    if node == 0 || read_ptr(node + 0x80) as u64 != hit.victim {
-        // Native actor targeting still follows the struck enemy when no usable
-        // lock part was found (e.g. the enemy has none).
-        let actor_target: unsafe extern "system" fn(*mut u8, u64, u8) -> usize =
-            std::mem::transmute(base + ACTOR_TARGET_RVA);
-        actor_target(out, hit.victim, 0);
-        return;
-    }
-    // Mirror the game's type-1 lock target. Copy acquires the node reference;
-    // the bullet request and its final factory copy own independent references.
-    #[repr(align(16))]
-    struct Target([u8; 0x50]);
-    let mut target = Target([0; 0x50]);
-    target.0[0] = 1;
-    target.0[8..0x10].copy_from_slice(&hit.victim.to_le_bytes());
-    target.0[0x10..0x18].copy_from_slice(&node.to_le_bytes());
-    let dummy = lock_dummy(std::ptr::read((node + 0x77) as *const u8));
-    if dummy == -1 {
-        std::ptr::copy_nonoverlapping(node as *const u8, target.0.as_mut_ptr().add(0x20), 16);
-    }
-    target.0[0x30..0x34].copy_from_slice(&dummy.to_le_bytes());
-    target.0[0x40..0x44].fill(0xff);
-    let copy: unsafe extern "system" fn(usize, usize) -> usize =
-        std::mem::transmute(base + crate::echo_cast::TARGET_COPY_RVA);
-    copy(out as usize, target.0.as_ptr() as usize);
 }
 
 unsafe fn emit(actor: usize, owner: u64, hit: Trigger, base: usize) -> bool {
@@ -267,7 +263,7 @@ unsafe fn emit(actor: usize, owner: u64, hit: Trigger, base: usize) -> bool {
     let Some(mut d) = shot_descriptor(owner, level, crate::position(actor, base), facing.0) else {
         return false;
     };
-    set_hit_target(d.0.as_mut_ptr().add(0xb0), hit, base);
+    set_hit_target(&mut d, hit, base);
     let fire: unsafe extern "system" fn(usize, *mut i32, *const u8, *mut i32) -> usize =
         std::mem::transmute(entry);
     let mut handle = -1;
@@ -313,11 +309,11 @@ mod tests {
         s.bind(Some((1, 2)));
         let first = Trigger {
             victim: 12,
-            contact: [1., 0., 1., 1.],
+            offset: Some([1., 0., 1., 1.]),
         };
         let other = Trigger {
             victim: 20,
-            contact: [80., 0., 0., 1.],
+            offset: Some([0., 3., 0., 1.]),
         };
         s.hit(None);
         assert!(s.pending.is_none());
@@ -343,6 +339,22 @@ mod tests {
         assert!(s.pending.is_none());
         assert_eq!(s.cooldown, 0.);
     }
+    #[test]
+    fn hit_point_is_preserved_in_the_victims_rotated_and_scaled_coordinates() {
+        let pose = [
+            [0., 0., -2., 0.],
+            [0., 3., 0., 0.],
+            [4., 0., 0., 0.],
+            [10., 20., 30., 1.],
+        ];
+        assert_eq!(
+            world_to_target([22., 26., 28., 0.], pose),
+            Some([1., 2., 3., 1.])
+        );
+        assert_eq!(world_to_target([f32::NAN, 26., 28., 1.], pose), None);
+        assert_eq!(world_to_target([22., 26., 28., 1.], [[0.; 4]; 4]), None);
+    }
+
     #[test]
     fn volley_uses_current_facing_and_level_row() {
         for (level, facing, expected) in [

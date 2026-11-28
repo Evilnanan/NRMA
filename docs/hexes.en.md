@@ -247,7 +247,7 @@ Critical hits unleash a shockwave.
 <!-- hex:95005300 -->
 ## Onyx Lord
 
-Obtain an Onyx Lord’s Greatsword. Its attacks use less stamina. Hold its skill to summon meteors.
+Onyx Lord’s Greatsword attacks cost less stamina. Hold the skill button to summon meteors. Gain the Onyx Lord’s Greatsword.
 
 <!-- hex:95005400 -->
 ## Lightweight
@@ -272,8 +272,7 @@ Successive attacks unleash successive attacks.
 <!-- hex:95005900 -->
 ## Flowing Swordsman
 
-Gain a Flowing Curved Sword. It builds combos and charges faster, and uses less stamina. Successive attacks raise attack power.
-
+Flowing Curved Sword costs less stamina, builds combos and charges faster. Successive attacks boost attack power. Gain Flowing Curved Sword.
 
 <!-- hex:95007100 -->
 ## Battle Mage

@@ -462,7 +462,7 @@ fn signatures()->[(&'static str,u32);272] {
   (erosion::SOURCE_COPY_PATTERN,erosion::SOURCE_COPY_RVA as u32),(erosion::SOURCE_ID_PATTERN,erosion::SOURCE_ID_RVA as u32),
   (archmage_cost::SELECT_PATTERN,archmage_cost::SELECT_RVA as u32),(archmage_cost::COST_PATTERN,archmage_cost::COST_RVA as u32),(archmage_runtime::PATTERN,archmage_runtime::RVA as u32),(glass_cannon::OBJECT_PATTERN,glass_cannon::OBJECT_RVA as u32),(glass_cannon::PATTERN,glass_cannon::RVA as u32),(DAMAGE_PATTERN,DAMAGE_RVA as u32),(FORWARD_PATTERN,FORWARD_RVA as u32),
   (sniper_aim::SCOPED_PATTERN,sniper_aim::SCOPED_RVA as u32),(sniper_aim::AIM_EFFECT_PATTERN,sniper_aim::AIM_EFFECT_RVA as u32),
-  (sniper::NEAREST_TARGET_PATTERN,sniper::NEAREST_TARGET_RVA as u32),(sniper::ACTOR_TARGET_PATTERN,sniper::ACTOR_TARGET_RVA as u32),(POSITION_PATTERN,POSITION_RVA as u32),
+  (sniper::TARGET_TRANSFORM_PATTERN,sniper::TARGET_TRANSFORM_RVA as u32),(sniper::ACTOR_TARGET_PATTERN,sniper::ACTOR_TARGET_RVA as u32),(POSITION_PATTERN,POSITION_RVA as u32),
   (ACTION_REQUEST_PATTERN,ACTION_REQUEST_RVA as u32),
   (FLASK_COUNT_PATTERN,FLASK_COUNT_RVA as u32),
   (GAME_DATA_PATTERN,0x1fd598),(REWARD_CREATE_PATTERN,REWARD_CREATE_RVA as u32),
