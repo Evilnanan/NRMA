@@ -27,13 +27,17 @@ pub unsafe extern "system" fn select(player:usize,hand:u32,slot:u32,skill:u8){
  let base=BASE.load(Ordering::Acquire);
  let local=ACTIVE.load(Ordering::Acquire)&&crate::is_local(player,base);
  // A reentrant check during selection must never inherit the previous slot.
- if local{clear();}
+ if local{
+  clear();
+  crate::battle_mage::stop_speed(player,base);
+ }
  original(player,hand,slot,skill);
  if !local{return;}
  let modules=read_ptr(player+0x1b8);
  let module=if modules==0{0}else{read_ptr(modules+0x60)};
  let s=Selection{player,module,context:read_ptr(base+0x3c131c8),spell:crate::active_magic(player),secondary:secondary(hand,slot,skill)};
  if let Ok(mut current)=SELECTED.lock(){*current=s;}
+ crate::battle_mage::selected(player,hand,slot,skill,s.spell,base);
 }
 #[unsafe(naked)]
 pub unsafe extern "system" fn wrapper(_reference:usize,_effects:usize,_charge:u8)->u64{
@@ -46,6 +50,7 @@ unsafe extern "system" fn cost(reference:usize,effects:usize,charge:u8,caller:us
  let base=BASE.load(Ordering::Acquire);
  if !gameplay_cost(caller.wrapping_sub(base)){return result;}
  let Some(player)=archmage_runtime::local_owner(base) else{return result;};
+ if !crate::has_effect(player,crate::archmage::OWNER,base){return result;}
  if read_ptr(player+0x190)!=effects{return result;}
  let s=match SELECTED.lock(){Ok(s)=>*s,Err(_)=>return result};
  if !s.secondary||s.player!=player{return result;}
@@ -57,7 +62,7 @@ unsafe extern "system" fn cost(reference:usize,effects:usize,charge:u8,caller:us
 }
 #[cfg(test)]mod tests{
  use super::*;
- #[test]fn only_secondary_catalyst_requests_are_free(){
+ #[test]fn only_secondary_catalyst_requests_receive_the_discount(){
   for hand in [0,1,2,u32::MAX]{for slot in [0,1,2,u32::MAX]{for skill in [0,1,255]{
    assert_eq!(secondary(hand,slot,skill),hand<=1&&slot==1&&skill==0);
   }}}

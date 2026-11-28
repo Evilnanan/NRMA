@@ -13,6 +13,8 @@ thread_local!{
  static ROLLS:RefCell<VecDeque<usize>>=const{RefCell::new(VecDeque::new())};
  static ROLL:Cell<Option<usize>>=const{Cell::new(None)};
  static UID:Cell<u32>=const{Cell::new(1)};
+ static BROADCASTS:Cell<usize>=const{Cell::new(0)};
+ static REJECT_PUBLIC:Cell<bool>=const{Cell::new(false)};
 }
 pub(super) fn next_roll()->Option<usize>{ROLLS.with(|r|r.borrow_mut().pop_front()).or_else(||ROLL.with(Cell::get))}
 unsafe fn native_flight(base:usize,dt:f32){
@@ -28,6 +30,7 @@ unsafe extern "system" fn remove(_:usize,id:i32)->u8{EFFECTS.with(|c|c.borrow_mu
 unsafe extern "system" fn allocate(manager:usize,descriptor:usize)->usize{
  let index=ptr::read((descriptor+0xa9)as*const u8)as i32;
  if generated(read_i32(descriptor+0xb8))&&FAILURE.with(Cell::get)==index{return 0;}
+ if read_i32(descriptor+0x58)==0x11&&REJECT_PUBLIC.with(Cell::get){return 0;}
  let base=IMAGE.load(Ordering::Acquire);let mut node=Box::new([0u64;32]);let p=node.as_mut_ptr()as usize;
  let copy:unsafe extern "system" fn(usize,usize)->usize=std::mem::transmute(base+0x570410);copy(p+0x20,descriptor);
  if ptr::read_unaligned((p+0xca)as*const u16)&0x800!=0{ptr::write((p+0xf9)as*mut u8,1);ptr::write_unaligned((p+0xfc)as*mut f32,0.75);}
@@ -146,6 +149,79 @@ unsafe fn verify_envelope_and_hex(base:usize,items:usize,player:usize){
   assert_eq!(head_count(),2);assert!(!unclaimed_hex_ball(base));
  }
 }
+// The real dispatcher selects the host broadcast or guest request path.
+// Stub their transport while keeping compiled placement and native cleanup.
+unsafe extern "system" fn record_broadcast(_:usize,_:usize){BROADCASTS.with(|c|c.set(c.get()+1));}
+unsafe extern "system" fn request_public(manager:usize,descriptor:usize){
+ let start=read_ptr(manager+0x448);
+ ptr::copy_nonoverlapping(descriptor as *const u8,start as *mut u8,0xc0);
+ ptr::write_unaligned((manager+0x450) as *mut usize,start+0xc8);
+}
+unsafe fn verify_online_placement(base:usize,items:usize,data:&mut [i32]){
+ let mut session=[0u64;0x100/8];
+ let mut request=[0u64;0xc8/8];
+ let begin=request.as_mut_ptr() as usize;
+ ptr::write_unaligned((base+0x3c21ec8) as *mut usize,session.as_mut_ptr() as usize);
+ jump(base,0x57fa30,record_broadcast as *const () as usize);
+ jump(base,0x57fde0,request_public as *const () as usize);
+ // Omit the native per-thread counter following network dispatch in this PE fixture.
+ ptr::copy_nonoverlapping([0xe9,0x8c,0,0,0].as_ptr(),(base+0x575aa8) as *mut u8,5);
+ let lot=ROOTS[0].1;
+ for (mode,slot,reject) in [(3,1,true),(3,1,false),(6,2,false)]{
+  reset();NODES.with(|nodes|nodes.borrow_mut().clear());
+  ptr::write_unaligned((items+0x58)as*mut usize,0);
+  ptr::write_unaligned((items+0x448)as*mut usize,begin);
+  ptr::write_unaligned((items+0x450)as*mut usize,begin);
+  ptr::write_unaligned((session.as_mut_ptr().cast::<u8>().add(0xc))as*mut i32,mode);
+  data[2]=slot;
+  BROADCASTS.with(|c|c.set(0));
+  let mut handles=Vec::new();
+  for index in 0..3{
+   let mut choice=descriptor(lot,slot as u8,index,0x12345678);
+   let p=choice.as_mut_ptr() as usize;
+   ptr::write_unaligned((p+8) as *mut u32,120000+u32::from(index));
+   ptr::write_unaligned((p+0xaa) as *mut u16,0x4041|(slot as u16)<<7);
+   let node=capture(items,p,base+0x575b39);
+   handles.push(read_i32(node+0x78) as u32);
+  }
+  assert_eq!(head_count(),1);
+  REJECT_PUBLIC.with(|c|c.set(reject));
+  place(items,handles[1]);
+  REJECT_PUBLIC.with(|c|c.set(false));
+  if reject{
+   assert_eq!(NODES.with(|nodes|nodes.borrow().len()),3);
+   assert!(!placement::reserved(items,handles[0],base));
+   assert_eq!(BROADCASTS.with(Cell::get),0);
+   continue;
+  }
+  if mode==6{
+   assert!(placement::reserved(items,handles[0],base));
+   assert_eq!(pickup(items,handles[0],0),0);
+   assert_eq!(read_ptr(items+0x450),begin+0xc8);
+   let first=read_i32(begin+0x5c);
+   place(items,handles[2]);
+   assert_eq!(read_i32(begin+0x5c),first,"repeat clicks cannot re-place a different choice");
+   placement::finish(items,base);
+   assert_eq!(NODES.with(|nodes|nodes.borrow().len()),3);
+   let host_echo=capture(items,begin,base+0x57f046);
+   assert_ne!(host_echo,0);
+   placement::finish(items,base);
+  }else{
+   assert_eq!(BROADCASTS.with(Cell::get),1);
+  }
+  assert_eq!(NODES.with(|nodes|nodes.borrow().len()),1);
+  NODES.with(|nodes|{
+   let nodes=nodes.borrow();
+   let node=nodes[0].as_ptr() as usize;
+   assert_eq!(read_i32(node+0x78)&0x1f,0x11);
+   assert_eq!(read_i32(node+0x28),120001);
+   assert_eq!(read_i32(node+0xd8),-1);
+   assert_eq!(ptr::read_unaligned((node+0xca) as *const u16),0x40);
+  });
+ }
+ reset();
+ ptr::write_unaligned((base+0x3c21ec8) as *mut usize,0);
+}
 #[test]
 #[ignore="requires NRHEX_NATIVE_EXE; maps private PE and must run alone"]
 fn compiled_fission_routes_online_draws_and_native_independent_groups(){unsafe{
@@ -199,6 +275,19 @@ fn compiled_fission_routes_online_draws_and_native_independent_groups(){unsafe{
   apply(player,reward_cycle_runtime::RESET,0);update(player,base,0.3);assert!(STATE.lock().unwrap().seen.is_empty());remove(0,reward_cycle_runtime::RESET);
 
  }
+ // A hidden original without a flight animation still waits for native enable.
+ reset();NODES.with(|nodes|nodes.borrow_mut().clear());ptr::write_unaligned((items+0x58)as*mut usize,0);
+ data[2]=1;ROLL.with(|r|r.set(Some(0)));apply(player,OWNER,0);
+ for index in 0..count{
+  let mut choice=descriptor(source,1,index,0x1234);let p=choice.as_mut_ptr()as usize;
+  ptr::write_unaligned((p+0xaa)as*mut u16,0x4081);
+  assert_ne!(capture(items,p,base+0x575a53),0);
+ }
+ update(player,base,0.5);assert_eq!(head_count(),1);assert_eq!(STATE.lock().unwrap().queue.len(),1);
+ NODES.with(|nodes|for node in nodes.borrow().iter(){let flags=(node.as_ptr()as usize+0xca)as*mut u16;*flags|=0x40;});
+ ROLL.with(|r|r.set(Some(3)));update(player,base,0.5);assert_eq!(head_count(),2);
+ ROLL.with(|r|r.set(Some(0)));
+ reset();NODES.with(|nodes|nodes.borrow_mut().clear());ptr::write_unaligned((items+0x58)as*mut usize,0);
  // Native records already carrying data must survive the codec untouched.
  for record in [[1,0,0],[0,1,0],[0,0,1],[u32::MAX,0,1]]{
   online_descriptor(source,2,0,777,1,record,true,-1);
@@ -289,6 +378,7 @@ fn compiled_fission_routes_online_draws_and_native_independent_groups(){unsafe{
   assert_eq!(read_i32(items+0x1c),slot*7);assert_ne!(read_i32(bells[0]+0x7c),read_i32(bells[1]+0x7c));
   assert_eq!(NODES.with(|nodes|nodes.borrow().len()),10);assert_eq!(PERSONAL_REWARD.with(|scope|scope.get().manager),0);
  }
+ verify_online_placement(base,items,&mut data);
  ROLL.with(|r|r.set(None));
  *STATE.lock().unwrap()=old_state;BASE.store(old_base,Ordering::Release);ACTIVE.store(old_active,Ordering::Release);REWARD_CREATE_ORIG.store(old_dispatch,Ordering::Release);NODES.with(|n|n.borrow_mut().clear());VirtualFree(allocation,0,MEM_RELEASE);
 }}

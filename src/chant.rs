@@ -2,6 +2,7 @@ pub const OWNER:i32=95002000;
 pub const ENABLED:i32=6999920;
 pub const PULSE:i32=6999921;
 pub const VISUAL:i32=95002001;
+pub const WARD:i32=95002002;
 pub const RESTORE:i32=30;
 #[derive(Default)]
 pub struct Chant { identity:(usize,usize), active:bool, seen:bool, charging:bool }

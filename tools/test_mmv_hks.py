@@ -27,6 +27,7 @@ def interpreted(code, constants, globals_, arguments, outputs=()):
         if op == 91: regs[a] = globals_[constants[bx]]
         elif op == 76: pass
         elif op == 25: regs[a] = constants[bx]
+        elif op == 7: regs[a] = regs[b]
         elif op == 13:
             regs[a] = bool(b)
             if c: position += 1
@@ -46,6 +47,87 @@ def interpreted(code, constants, globals_, arguments, outputs=()):
 
 
 class FragmentTests(unittest.TestCase):
+    def test_battle_mage_selects_a_direct_event_only_inside_the_native_window(self):
+        from build_battle_mage_hks import ACCEPTED, FULL_BODY, QUERY, mmv_edits, patch_binary
+
+        def prototype(data):
+            reader = Reader(data)
+            reader.function()
+            return next(f for f in reader.functions if f['name'] == 'ExecComboMagic')
+
+        original = (ROOT / 'assets/original/action/script/c0000.hks').read_bytes()
+        native = prototype(original)
+        patched = prototype(patch_binary(original))
+        mmv = Path(os.environ.get('NRHEX_MMV', 'D:/Users/OwO/Documents/me3-profiles/MMV'))
+        lua = None
+        if mmv.is_dir():
+            source = (mmv / 'mod/action/script/c0000.hks').read_bytes().decode('utf-8-sig')
+            func = functions(source)['ExecComboMagic']
+            body = source[func['body']:func['end']]
+            for start, end, replacement in reversed(list(mmv_edits(body))):
+                body = body[:start] + replacement + body[end:]
+            lua = LuaRuntime()
+            lua.execute(source[func['start']:func['body']] + body)
+
+        cases = itertools.product((0, 1), (0, 1), (0, 100600, 100601, 100605, 100606),
+                                  (False, True), (False, True), (0, 1, 2), (False, True), (False, True))
+        for mounted, hand, window, matches, available, query, swap_stage, planted in cases:
+            selected = query == 1
+            previous = 2 if matches else 1
+            arguments = (hand, 7, previous, 2)
+
+            def world():
+                events, accepted, locomotion = [], [], []
+
+                def env(code, value=0):
+                    if code == 500:
+                        return mounted
+                    if code == 1116:
+                        return int(value == window)
+                    if code == QUERY:
+                        self.assertEqual(value, 2)
+                        return query
+                    if code == ACCEPTED:
+                        accepted.append(value)
+                        return 5 - value if selected and swap_stage else value
+                    if code == FULL_BODY:
+                        self.assertTrue(accepted)
+                        return int(selected and planted)
+                    raise AssertionError(code)
+
+                names = ('Event_MagicFireRight2', 'Event_MagicFireRight3',
+                         'Event_MagicFireLeft2', 'Event_MagicFireLeft3')
+                globals_ = dict(env=env, IsComboMagic=lambda: int(available),
+                                FALSE=0, TRUE=1, HAND_RIGHT=1, ALLBODY=2, IsOnMount=500, GetSpEffectID=1116,
+                                SetVariable=lambda key, value: locomotion.append((key, value)),
+                                ExecEventHalfBlend=lambda event, blend: events.append((event, blend)),
+                                ExecEventAllBody=lambda event: events.append((event,)))
+                globals_.update({name: name for name in names})
+                return globals_, events, accepted, locomotion
+
+            globals_, expected_events, _, expected_locomotion = world()
+            native_args = (hand, 7, 2 if selected else previous, 2)
+            native_result, = interpreted(native['code'], native['constants'], globals_, native_args)
+            stage = 2 if window in (100600, 100605) else 3
+            if native_result and selected and swap_stage:
+                event, *extra = expected_events[0]
+                suffix = 1 if mounted else 0
+                expected_events = [(event[:-1] + str(5 - stage - suffix), *extra)]
+            if native_result and selected and planted and not mounted:
+                expected_events = [(expected_events[0][0], 2)]
+                expected_locomotion = [("LocomotionState", 0)]
+            expected = (0, [], [], []) if query == 2 else (
+                native_result, expected_events, [stage] if native_result else [], expected_locomotion)
+            globals_, events, accepted, locomotion = world()
+            result, = interpreted(patched['code'], patched['constants'], globals_, arguments)
+            self.assertEqual((result, events, accepted, locomotion), expected, arguments)
+            if lua is not None:
+                globals_, events, accepted, locomotion = world()
+                for name, value in globals_.items():
+                    lua.globals()[name] = value
+                result = lua.globals().ExecComboMagic(*arguments)
+                self.assertEqual((result, events, accepted, locomotion), expected, arguments)
+
     def test_parser_ignores_comments_and_strings(self):
         source = '--[[\nfunction fake()\nend\n]]\nfunction real(a)\nif a then local s="end" end\nend\n'
         self.assertEqual(list(functions(source)), ['real'])
@@ -122,7 +204,8 @@ class FragmentTests(unittest.TestCase):
         for path in ('assets/original/action/script/c0000.hks', 'dist/mod/action/script/c0000.hks'):
             reader = Reader((ROOT / path).read_bytes()); reader.function(); readers.append(reader)
         merged, report = compose(source, *readers, json.loads(PLAN.read_text(encoding='utf8')))
-        self.assertEqual(len(report['functions']), 176)
+        self.assertEqual(len(report['functions']), 177)
+        self.assertIn('ExecComboMagic', report['functions'])
         from build_arts_cast_hks import NAMES
         self.assertTrue(NAMES.issubset(report['functions']))
         self.assertIn('ExecTravelMagnification', report['functions'])

@@ -80,7 +80,7 @@ unsafe fn visual(actor:usize,base:usize,ready:bool){
  if ready{let apply:unsafe extern "system" fn(usize,i32,u8)->u8=std::mem::transmute(base+crate::APPLY_SELF_RVA);apply(actor,READY,0);}
  else{let remove:unsafe extern "system" fn(usize,i32)->u8=std::mem::transmute(base+crate::REMOVE_EFFECT_RVA);remove(read_ptr(actor+0x190),READY);}
 }
-unsafe fn level(base:usize)->i32{let game=read_ptr(base+crate::GAME_DATA_RVA);let data=if game!=0{read_ptr(game+8)}else{0};if data!=0{read_i32(data+0x68).clamp(1,15)}else{1}}
+pub(crate) unsafe fn level(base:usize)->i32{let game=read_ptr(base+crate::GAME_DATA_RVA);let data=if game!=0{read_ptr(game+8)}else{0};if data!=0{read_i32(data+0x68).clamp(1,15)}else{1}}
 unsafe fn mark_visual(target:usize,base:usize){let apply:unsafe extern "system" fn(usize,i32,u8)->u8=std::mem::transmute(base+crate::APPLY_SELF_RVA);apply(target,MARK,0);}
 // Actor +8 contains the entity handle used by BulletMan's source descriptor.
 // Its upper word can be -1 even for the live local player.
@@ -135,10 +135,10 @@ pub unsafe fn update(actor:usize,base:usize,dt:f32){
 }
 // Native dispatch can contain preview calculations and nested dispatches. Only
 // its accepted-hit notification commits, once per dispatch, not once per frame.
-thread_local!{static DISPATCH:RefCell<Vec<(usize,usize,[bool;2])>>=const{RefCell::new(Vec::new())};}
+thread_local!{static DISPATCH:RefCell<Vec<(usize,usize,[bool;3])>>=const{RefCell::new(Vec::new())};}
 pub struct DispatchGuard;
 impl Drop for DispatchGuard{fn drop(&mut self){DISPATCH.with(|s|{s.borrow_mut().pop();});}}
-pub fn dispatch_scope(module:usize,hit:usize)->DispatchGuard{DISPATCH.with(|s|s.borrow_mut().push((module,hit,[false;2])));DispatchGuard}
+pub fn dispatch_scope(module:usize,hit:usize)->DispatchGuard{DISPATCH.with(|s|s.borrow_mut().push((module,hit,[false;3])));DispatchGuard}
 fn claim_contact(module:usize,hit:usize,consumer:usize)->bool{
  DISPATCH.with(|s|{
   let mut stack=s.borrow_mut();
@@ -146,6 +146,7 @@ fn claim_contact(module:usize,hit:usize,consumer:usize)->bool{
   !std::mem::replace(&mut scope.2[consumer],true)
  })
 }
+pub(crate) fn first_sniper_contact(module:usize,hit:usize)->bool{claim_contact(module,hit,2)}
 fn first_contact(module:usize,hit:usize)->bool{claim_contact(module,hit,0)}
 pub(crate) fn first_flowing_contact(module:usize,hit:usize)->bool{claim_contact(module,hit,1)}
 // Capture before all custom late offensive multipliers. Also observe preview

@@ -54,13 +54,14 @@ static class MmvTae {
                 var originals = TAE.Read(bf.Bytes).Animations.ToDictionary(a => a.ID);
                 foreach (var a in TAE.Read(nf.Bytes).Animations) {
                     if(OnyxMastery.AddedAnimation(name,a.ID)){Check(!originals.ContainsKey(a.ID)&&!current.Animations.Any(x=>x.ID==a.ID),"Onyx animation collision");continue;}
+                    if(BattleMage.AddedAnimation(name,a.ID)){Check(!originals.ContainsKey(a.ID)&&!current.Animations.Any(x=>x.ID==a.ID),"Battle Mage animation collision");continue;}
                     Check(originals.TryGetValue(a.ID, out var old), $"New NRHex animation needs adapter: {name}/{a.ID}");
                     var extras = a.Events.ToList();
                     for (int j = 0; j < old!.Events.Count; j++) {
                         int found = extras.FindIndex(e => Equal(old.Events[j], e, j == 0, name=="a841.tae"?24:8));
                         Check(found >= 0, $"NRHex changed a native event: {name}/{a.ID}/{j}"); extras.RemoveAt(found);
                     }
-                    extras.RemoveAll(e => Guard(e) || JiahaoFeint.IsExtra(a.ID, e) || FlowingSwordsman.IsMarker(name,e) || FlowingSwordsman.IsFeintGate(name,a.ID,e)); if (extras.Count == 0) continue;
+                    extras.RemoveAll(e => Guard(e) || JiahaoFeint.IsExtra(a.ID, e) || FlowingSwordsman.IsMarker(name,e) || FlowingSwordsman.IsFeintGate(name,a.ID,e) || BattleMage.AddedWindow(name,a.ID,e)); if (extras.Count == 0) continue;
                     var matches = current.Animations.Select((v, i) => (v, i)).Where(p => p.v.ID == a.ID && p.v.Events.Count > 0).ToArray();
                     Check(matches.Length == 1, $"Ambiguous nonempty MMV animation: {name}/{a.ID}"); var target = matches[0];
                     foreach (var e in extras) {
@@ -110,6 +111,7 @@ static class MmvTae {
         JiahaoFeint.Apply(merged);
         FlowingSwordsman.ChargeWindows(merged);
         FlowingSwordsman.FeintWindows(merged);
+        BattleMage.ExtendTimelines(merged, mmv: true);
         // Every non-TAE member must be unchanged by NRHex; retain all MMV members.
         foreach (var (name, f) in shared.Where(p => !p.Key.EndsWith(".tae")))
             Check(baseline.TryGetValue(name, out var old) && f.Bytes.Span.SequenceEqual(old.Bytes.Span), $"New non-TAE animation resource: {name}");

@@ -1,5 +1,5 @@
 //! Double the Joy: persist two draws, then grant directly through local common.
-//! Bartender bypasses role exclusivity here; owned/self remain unavailable.
+//! The box bypasses weapon affinity and normal ownership conflicts.
 use crate::{has_effect,is_local,read_ptr,native_actor,hex_pool::{OWNER_IDS,HISTORY_BITS},reward_choices::HexSet};
 use std::sync::Mutex;
 pub const OWNER:i32=95004700;
@@ -16,8 +16,11 @@ fn candidates(owned:&HexSet,selected:&[usize],hero:Option<u8>)->Vec<usize>{
  OWNER_IDS.iter().enumerate().filter_map(|(i,&owner)|(!owned.contains(&i)&&!selected.contains(&i)&&role_allowed(owner,hero)).then_some(i)).collect()
 }
 fn select(mut selected:Vec<usize>,owned:&HexSet,hero:Option<u8>,mut rng:impl FnMut(usize)->Option<usize>)->Option<Vec<usize>>{
- let mut pool=candidates(owned,&selected,hero);
- while selected.len()<2&&!pool.is_empty(){let n=rng(pool.len())?;if n>=pool.len(){return None;}selected.push(pool.remove(n));}
+ while selected.len()<2{
+  let pool=candidates(owned,&selected,hero);
+  if pool.is_empty(){break;}
+  selected.push(*pool.get(rng(pool.len())?)?);
+ }
  Some(selected)
 }
 #[derive(Default)]struct State{selected:Option<Vec<usize>>,posted:std::collections::BTreeSet<i32>,announced:std::collections::BTreeSet<i32>}
@@ -97,11 +100,37 @@ pub unsafe fn update(actor:usize,base:usize){
  }
  #[test]fn draws_are_distinct_and_restored_partial_choices_fill_without_rerolling(){
   let owned=mask([index(OWNER)]);let pool=candidates(&owned,&[],Some(3));
-  for first in 0..pool.len(){for second in 0..pool.len()-1{
-   let mut draws=[first,second].into_iter();let selected=select(vec![],&owned,Some(3),|_|draws.next()).unwrap();assert_eq!(selected.len(),2);assert_ne!(selected[0],selected[1]);assert_eq!(selected[0],pool[first]);
+  for first in 0..pool.len(){
+  let next=candidates(&owned,&[pool[first]],Some(3));
+  for second in 0..next.len(){
+   let mut draws=[first,second].into_iter();let selected=select(vec![],&owned,Some(3),|_|draws.next()).unwrap();assert_eq!(selected.len(),2);assert_ne!(selected[0],selected[1]);assert_eq!((selected[0],selected[1]),(pool[first],next[second]));
   }}
   let first=index(95004500);let selected=select(vec![first],&owned,Some(3),|_|Some(0)).unwrap();assert_eq!(selected[0],first);assert_ne!(selected[1],first);
   assert_eq!(select(vec![],&owned,Some(1),|_|None),None);assert_eq!(select(vec![],&owned,Some(1),|n|Some(n)),None);
+ }
+ #[test]fn battle_mage_and_archmage_conflict_in_normal_draws_but_not_in_the_box(){
+  let mage=index(crate::archmage::OWNER);
+  let battle=index(crate::battle_mage::OWNER);
+  let owned=mask([index(OWNER)]);
+  let seen=HexSet::new();
+  let unowned=crate::reward_choices::combat_exclusions(seen.clone(),Some(3),Some(57));
+  let round=crate::reward_cycle::Round::new(&unowned,&seen);
+  assert!(round.candidates.contains(&battle)&&round.candidates.contains(&mage));
+  let physical=crate::reward_choices::combat_exclusions(seen.clone(),Some(3),Some(1300));
+  assert!(physical.contains(&battle));
+  assert!(candidates(&owned,&[],Some(3)).contains(&battle));
+  for (first,second) in [(mage,battle),(battle,mage)]{
+   assert!(candidates(&mask([first]),&[],Some(3)).contains(&second));
+   let excluded=crate::reward_choices::combat_exclusions(mask([first]),Some(3),Some(57));
+   let round=crate::reward_cycle::Round::new(&excluded,&seen);
+   assert!(!round.candidates.contains(&second));
+   assert!(!round.preferred([second,0,1]).unwrap().contains(&second));
+   assert!(!crate::reward_cycle::Single::new(&excluded,&seen,&mask([0,1])).candidates.contains(&second));
+   let a=candidates(&owned,&[],Some(3)).iter().position(|&i|i==first).unwrap();
+   let b=candidates(&owned,&[first],Some(3)).iter().position(|&i|i==second).unwrap();
+   let mut draws=[a,b].into_iter();
+   assert_eq!(select(vec![],&owned,Some(3),|_|draws.next()),Some(vec![first,second]));
+  }
  }
  #[test]fn exhausted_pool_never_reintroduces_owned_powers_and_markers_are_stable(){
   let mut owned=all(OWNER_IDS.len());assert_eq!(select(vec![],&owned,Some(1),|_|panic!()),Some(vec![]));let one=index(95004500);owned.remove(&one);assert_eq!(select(vec![],&owned,Some(1),|_|Some(0)),Some(vec![one]));

@@ -33,7 +33,21 @@ def generate(raw):
     source += 'pub const SPELLS:&[(i32,u8)]=&[\n'
     source += ''.join(f' ({mid},{kind}),\n' for mid, kind in sorted(known.items())) + '];\n'
     source += 'pub const RANDOM_SPELLS:&[i32]=&[' + ','.join(map(str, random)) + '];\n'
-    return source, dict(known=len(known), random=len(random),
+    motions = {int(key): phase for key, phase in raw.get('comboMotions', {}).items()}
+    extensions = {int(spell): family for spell, family in raw.get('comboExtensions', {}).items()}
+    extended_families = set(extensions.values())
+    for spell, family in extensions.items():
+        if spell not in random or magic[spell].get('refType') != family or motions.get(family) != 3:
+            raise ValueError(f'Incomplete Battle Mage continuation for {spell}/{family}')
+    combos = sorted(mid for mid in known if magic[mid].get('refType') in motions and
+                    (magic[mid]['refType'] not in extended_families or mid in extensions))
+    if motions and {known[mid] for mid in set(combos) & set(random)} != {0, 1}:
+        raise ValueError('Empty Battle Mage spell type')
+    traits = ((mid, magic[mid]['refType'], motions[magic[mid]['refType']]) for mid in combos)
+    source += '// Spell, animation family, last chainable stage.\n'
+    source += 'pub const COMBO_SPELLS:&[(i32,u8,u8)]=&[' + ','.join(f'({mid},{m},{phase})' for mid, m, phase in traits) + '];\n'
+    source += 'pub const COMBO_EXTENDED_FAMILIES:&[u8]=&[' + ','.join(map(str, sorted(extended_families))) + '];\n'
+    return source, dict(comboSpells=combos, known=len(known), random=len(random),
                         sorceries=sum(known[i] == 0 for i in random),
                         incantations=sum(known[i] == 1 for i in random),
                         classified=sorted(known), randomSpells=random,
@@ -50,11 +64,15 @@ def main():
     path = args.overlay.resolve() / 'mod/regulation.bin'
     if Path(raw['regulationPath']).resolve() != path or hashlib.sha256(path.read_bytes()).hexdigest() != raw['regulationSha256'].lower():
         raise ValueError('Stale Archmage export; export the selected overlay first')
+    animations = args.overlay.resolve() / 'mod/chr/c0000.anibnd.dcx'
+    if not raw.get('comboMotions') or hashlib.sha256(animations.read_bytes()).hexdigest() != raw['comboAnimationsSha256'].lower():
+        raise ValueError('Stale Battle Mage animation export; export the selected overlay first')
     source, report = generate(raw)
     out = ROOT / 'work/compat/mmv/staged'
     out.mkdir(parents=True, exist_ok=True)
     (out / 'archmage_data.rs').write_text(source, encoding='utf8')
     report.update(regulationSha256=raw['regulationSha256'].lower(),
+                  animationsSha256=raw['comboAnimationsSha256'].lower(),
                   outputSha256=hashlib.sha256(source.encode()).hexdigest())
     (out / 'archmage-validation.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf8')
     print(f"Archmage: {report['known']} classified; {report['sorceries']} sorceries / {report['incantations']} incantations")

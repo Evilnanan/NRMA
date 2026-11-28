@@ -77,7 +77,7 @@ Better backstep evasion. Backstep hits/frontal crits restore 25% Art gauge; roll
 <!-- hex:95001400 -->
 ## Master of Arms
 
-Reduces FP consumption of weapon skills by 100%. Reforges the armament's skill after each use.
+Reduces FP consumption of weapon skills by 100%. Reforges the armament's skill after each use. Raises weapon skill attack power by 20%.
 
 <!-- hex:95001500 -->
 ## Poltergeist
@@ -102,7 +102,7 @@ Using an Ultimate Art summons the spirit of the last powerful foe defeated. Defe
 <!-- hex:95002000 -->
 ## Don't Change the Channel
 
-Restores 30 stamina upon fully charging a sorcery or incantation.
+Fully charging a sorcery or incantation restores 30 stamina and reduces damage taken by 25% for 2s.
 
 <!-- hex:95002100 -->
 ## Archmage
@@ -212,7 +212,7 @@ Seals Ultimate Arts. Greatly accelerates Character Skill cooldown recovery and b
 <!-- hex:95004500 -->
 ## Experienced Sniper
 
-Attack power -30%. Damage increases with distance to the target. Greatly extends range.
+Greatly extends range. Precision-aimed shots fire magic arrows on hit or shorten their 9s cooldown by 1s.
 
 <!-- hex:95004600 -->
 ## Metallization
@@ -273,3 +273,9 @@ Successive attacks unleash successive attacks.
 ## Flowing Swordsman
 
 Gain a Flowing Curved Sword. It builds combos and charges faster, and uses less stamina. Successive attacks raise attack power.
+
+
+<!-- hex:95007100 -->
+## Battle Mage
+
+Casting a catalyst's secondary spell rerolls it. Chained casts are faster and cost half as much stamina.

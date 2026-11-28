@@ -22,12 +22,18 @@ unsafe extern "system" fn detour(reference:usize,slot:u32,caller:usize)->u64{
  let Some(player)=local_owner(base) else{return result;};
  let Some(c)=catalyst_reference(reference) else{return result;};
  if !equipped(player,c.handle){return result;}
+ if caller.wrapping_sub(base)==0x82fa85 {
+  if let Some(spell)=crate::battle_mage::behavior_spell(player,c,base){return spell as u32 as u64;}
+ }
  MAGE.get().and_then(|s|s.lock().ok()?.selected(c)).map(|spells|spells[slot as usize] as u32 as u64).unwrap_or(result)
 }
 pub unsafe fn local_owner(base:usize)->Option<usize>{
  let world=read_ptr(base+crate::WORLD_RVA);if world==0{return None;}
  let player=read_ptr(world+0x174e8);
- (player!=0&&crate::has_effect(player,archmage::OWNER,base)).then_some(player)
+ (player!=0&&owns_overlay(player,base)).then_some(player)
+}
+pub unsafe fn owns_overlay(player:usize,base:usize)->bool{
+ crate::has_effect(player,archmage::OWNER,base)||crate::has_effect(player,crate::battle_mage::OWNER,base)
 }
 pub unsafe fn equipped(player:usize,handle:u32)->bool{
  let equip=read_ptr(player+0x670);
@@ -50,24 +56,38 @@ pub unsafe fn catalyst_handle(handle:*const u32,base:usize)->Option<Catalyst>{
  let mut reference=[0u64;3];init(reference.as_mut_ptr(),handle);
  let c=catalyst_reference(reference.as_ptr() as usize);release(reference.as_mut_ptr());c
 }
-unsafe fn hand(player:usize,hand:i32,base:usize)->Option<Catalyst>{
+pub unsafe fn hand(player:usize,hand:i32,base:usize)->Option<Catalyst>{
  let get:unsafe extern "system" fn(usize,*mut u32,i32)->*const u32=std::mem::transmute(read_ptr(read_ptr(player)+0x258));
  let mut handle=0;let p=get(player,&mut handle,if hand==0{-2}else{-1});catalyst_handle(p,base)
 }
 pub unsafe fn pulse(player:usize,effect:i32,base:usize){
  if !matches!(effect,archmage::BUSY|archmage::LEFT_0|archmage::LEFT_1|archmage::RIGHT_0|archmage::RIGHT_1)
-  ||!crate::is_local(player,base)||!crate::has_effect(player,archmage::OWNER,base){return;}
- let used=archmage::pulse(effect).and_then(|(h,slot)|hand(player,h,base).map(|c|(c,slot)));
+  ||!crate::is_local(player,base)||!owns_overlay(player,base){return;}
+ let used=if crate::battle_mage::enabled(player,base){None}else{archmage::pulse(effect).and_then(|(h,slot)|hand(player,h,base).map(|c|(c,slot)))};
+ notify(used);
+}
+pub fn notify(used:Option<(Catalyst,usize)>){
  if let Some(state)=MAGE.get(){if let Ok(mut s)=state.lock(){s.notify(used);}}
 }
 pub unsafe fn update(player:usize,base:usize){
  let Some(state)=MAGE.get() else{return;};
  let modules=read_ptr(player+0x1b8);if modules==0{return;}
  let stats=read_ptr(modules);if stats==0{return;}
- let owned=crate::has_effect(player,archmage::OWNER,base);let alive=read_i32(stats+0x140)>0;
+ let archmage_owned=crate::has_effect(player,archmage::OWNER,base);
+ let owned=archmage_owned||crate::has_effect(player,crate::battle_mage::OWNER,base);
+ let alive=read_i32(stats+0x140)>0;
  let context=read_ptr(base+0x3c131c8);
- if !owned||!alive{crate::archmage_cost::clear();}
- let pending={let Ok(mut s)=state.lock() else{return;};s.synchronize(context,owned,alive);s.tick()};
+ if !archmage_owned||!alive{crate::archmage_cost::clear();}
+ let battle=crate::battle_mage::enabled(player,base);
+ if !battle{crate::battle_mage::clear();}
+ let (pending,casting)={
+  let Ok(mut s)=state.lock() else{return;};
+  s.synchronize(context,owned,alive);
+  if battle{s.clear_pending();}
+  let pending=s.tick();
+  (pending,s.casting())
+ };
+ if !battle||!casting{crate::battle_mage::stop_speed(player,base);}
  reroll(pending);
  let marker=crate::has_effect(player,archmage::MARKER,base);
  if owned&&alive&&!marker{
@@ -77,20 +97,24 @@ pub unsafe fn update(player:usize,base:usize){
  }
 }
 unsafe fn reroll(pending:Vec<(Catalyst,usize)>){
- let Some(state)=MAGE.get() else{return;};
- for (c,slot) in pending{
-  let old=state.lock().ok().and_then(|s|s.selected(c)).unwrap_or(c.original)[slot];
-  let choices:Vec<_>=archmage::pool(c.original[slot]).into_iter().filter(|&id|id!=old).collect();
-  if choices.is_empty(){continue;}
-  let mut random=0u32;let count=choices.len() as u32;
-  loop{
-   if crate::BCryptGenRandom(ptr::null_mut(),&mut random as *mut u32 as *mut u8,4,2)<0{break;}
-   if random>=u32::MAX-u32::MAX%count{continue;}
-   let spell=choices[(random%count) as usize];
-   if let Ok(mut s)=state.lock(){s.reroll(c,slot,spell);}
-   crate::nlog_info!("Archmage: handle={} slot={slot} spell={old}->{spell}",c.handle);break;
-  }
- }
+ for (c,slot) in pending{reroll_slot(c,slot,false);}
+}
+pub unsafe fn reroll_slot(c:Catalyst,slot:usize,chain_only:bool)->Option<i32>{
+ reroll_matching(c,slot,|id|!chain_only||crate::battle_mage::chain_spell(id))
+}
+pub unsafe fn reroll_continuation(c:Catalyst,spell:i32,phase:u8,motion:u8)->Option<i32>{
+ reroll_matching(c,1,|id|crate::battle_mage::continuation(spell,phase,motion,id).is_some())
+    .or_else(||reroll_slot(c,1,true))
+}
+unsafe fn reroll_matching(c:Catalyst,slot:usize,allowed:impl Fn(i32)->bool)->Option<i32>{
+ let state=MAGE.get()?;
+ let old=state.lock().ok()?.selected(c).unwrap_or(c.original)[slot];
+ let choices:Vec<_>=archmage::pool(c.original[slot]).into_iter()
+  .filter(|&id|id!=old&&allowed(id)).collect();
+ let spell=*choices.get(crate::random_index(choices.len())?)?;
+ if !state.lock().ok()?.reroll(c,slot,spell){return None;}
+ crate::nlog_info!("Archmage: handle={} slot={slot} spell={old}->{spell}",c.handle);
+ Some(spell)
 }
 pub unsafe fn serialized(payload:usize,handle:usize,caller:usize,transfer:bool)->Option<Drop>{
  if payload==0||handle==0{return None;}
@@ -98,7 +122,7 @@ pub unsafe fn serialized(payload:usize,handle:usize,caller:usize,transfer:bool)-
  let c=catalyst_handle(handle as *const u32,base)?;
  if transfer{
   let pending=MAGE.get().and_then(|state|state.lock().ok().map(|mut s|s.drop_boundary(c))).unwrap_or_default();
-  reroll(pending);
+  for (c,slot) in pending{reroll_slot(c,slot,crate::battle_mage::enabled(player,base));}
  }
  // A used catalyst can be unequipped before being dropped. Capture its
  // overlay by instance identity even though it is no longer in the six slots.

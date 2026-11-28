@@ -12,6 +12,21 @@ var game=Environment.GetEnvironmentVariable("NRHEX_GAME")??Path.Combine(drive,"P
 AppDomain.CurrentDomain.AssemblyResolve+=(_,a)=>{var p=Path.Combine(smith,new AssemblyName(a.Name).Name+".dll");return File.Exists(p)?Assembly.LoadFrom(p):null;};
 NativeLibrary.SetDllImportResolver(typeof(BND4).Assembly,(n,a,p)=>{var f=Path.Combine(game,n.EndsWith(".dll")?n:n+".dll");return File.Exists(f)?NativeLibrary.Load(f):IntPtr.Zero;});
 Directory.SetCurrentDirectory(game);
+if (args.Contains("--battle-mage-actions")) {
+ int at=Array.IndexOf(args,"--battle-mage-actions");
+ string sourceMod=args[at+1], outputMod=args[at+2], work=args[at+3];
+ bool mmv=args.Contains("--mmv");
+ const string timelines="chr/c0000.anibnd.dcx", behavior="chr/c0000.behbnd.dcx";
+ if (!args.Contains("--behavior-only"))
+  BattleMage.StageTimelines(Path.Combine(sourceMod,timelines),Path.Combine(outputMod,timelines),mmv);
+ BattleMage.StageBehavior(root,Path.Combine(sourceMod,behavior),Path.Combine(outputMod,behavior),work,mmv);
+ return;
+}
+if (args.Contains("--battle-mage-movement-stage")) {
+ int at=Array.IndexOf(args,"--battle-mage-movement-stage");
+ BattleMage.StageFullBodyMarkers(args[at+1],args[at+2],args.Contains("--mmv"));
+ return;
+}
 if(args.Contains("--jiahao-followup")){JiahaoFollowup.Stage(root,args.Contains("--mmv"));return;}
 if(args.Contains("--storm-audio-probe")){StormAudio.Probe(root,smith,game);return;}
 // Text-only work does not require parsing parameters or rebuilding gameplay assets.
@@ -154,6 +169,8 @@ if(args.Contains("--static-charge-stage")){StaticCharge.Stage(root,bnd,Parse,Hex
 if(args.Contains("--bartender-stage")){Bartender.Stage(root,bnd,Parse,HexCatalog.Load(root),args.Contains("--mmv"));return;}
 if(args.Contains("--deliberate-punch-stage")){DeliberatePunch.Stage(root,bnd,Parse,HexCatalog.Load(root));return;}
 if(args.Contains("--sniper-stage")){Sniper.Stage(root,bnd,Parse,HexCatalog.Load(root));return;}
+if(args.Contains("--sniper-volley-update")){int at=Array.IndexOf(args,"--sniper-volley-update");Sniper.Update(args[at+1],args[at+2],Parse);return;}
+if(args.Contains("--sniper-sound-event")){int at=Array.IndexOf(args,"--sniper-sound-event");Sniper.StageSound(args[at+1],args[at+2]);return;}
 if(args.Contains("--sniper-check")){Sniper.Verify(root,bnd,Parse);return;}
 if(args.Contains("--basics-balance-stage")){Basics.StageBalance(root,bnd,Parse);return;}
 if(args.Contains("--basics-family-stage")){Basics.StageFamily(root,bnd,Parse);return;}
@@ -290,6 +307,10 @@ if(args.Contains("--sword-regain-stage")){SwordRegain.Stage(root,bnd,Parse);retu
 if(args.Contains("--sword-regain-probe")){SwordRegain.Export(root,bnd,Parse);return;}
 if(args.Contains("--sword-charged-probe")){SwordCharged.Probe(root,bnd,Parse);return;}
 if(args.Contains("--sword-charge-damage-probe")){SwordCharged.DamageProbe(root,bnd,Parse);return;}
+if(args.Contains("--battle-mage-speed-stage")){
+ int at=Array.IndexOf(args,"--battle-mage-speed-stage");
+ BattleMage.StageSpeed(args[at+1],args[at+2],Parse);return;
+}
 if(args.Contains("--archmage-data")){Archmage.WriteData(root,bnd,Parse);return;}
 if(args.Contains("--archmage-target-export")){Archmage.ExportTarget(root,args[Array.IndexOf(args,"--archmage-target-export")+1],Parse);return;}
 if(args.Contains("--mmv-map-icons-export")){
@@ -974,6 +995,7 @@ Require(Convert.ToInt32(nativeGood["goodsType"].Value)==11&&Convert.ToInt32(nati
 foreach(var h in hexes){
  var s=Clone("SpEffectParam",8000000,h.Id);
  Set(s,"maxHpRate",1f);Set(s,"spCategory",20);Set(s,"iconId",h.SmallIcon);Set(s,"spEffectTextId_1",h.Id);Set(s,"displayIconForPermamentEffect",0);
+ if(h.Id==Sniper.Owner)Sniper.OwnerRange(s);
  if(h.Id==95000200){foreach(var f in new[]{"physicsAttackRate","magicAttackRate","fireAttackRate","thunderAttackRate","darkAttackRate"})Set(s,f,.75f);foreach(var f in new[]{"magParamChange","miracleParamChange","shamanParamChange"})Set(s,f,1);foreach(var f in new[]{"addLifeForceStatus","addWillpowerStatus","addEndureStatus","addStrengthStatus","addDexterityStatus","addMagicStatus","addFaithStatus","addLuckStatus"})Set(s,f,10);}
  if(h.Id==95000300){foreach(var f in new[]{"physicsAttackRate","magicAttackRate","fireAttackRate","thunderAttackRate","darkAttackRate"})Set(s,f,GlassCannon.AttackRate);foreach(var f in new[]{"magParamChange","miracleParamChange","shamanParamChange"})Set(s,f,1);foreach(var f in new[]{"slashDamageCutRate","blowDamageCutRate","thrustDamageCutRate","neutralDamageCutRate","magicDamageCutRate","fireDamageCutRate","thunderDamageCutRate","darkDamageCutRate"})Set(s,f,10f);}
  if(h.Id==95001700){Set(s,"maxHpRate",1.5f);foreach(string field in new[]{"slashDamageCutRate","blowDamageCutRate","thrustDamageCutRate","neutralDamageCutRate","magicDamageCutRate","fireDamageCutRate","thunderDamageCutRate","darkDamageCutRate"})Set(s,field,field=="thrustDamageCutRate"?BalloonBalance.ThrustDamageRate:1.3f);}
@@ -984,11 +1006,13 @@ foreach(var h in hexes){
  if(h.Id==Marking.Owner)MarkingPoison.OwnerEffect(s);
  if(h.Id==DeathDance.Owner)DeathDance.Owners(s);
  if(h.Id==Erosion.Owner)Erosion.Owners(s);
- if(h.Id==Sniper.Owner)Sniper.OwnerEffect(s);
  if(h.Id==LightningRam.Owner||h.Id==ColdJuice.Owner)Set(s,"isDisableNetSync",0);
  if(h.Id==Bartender.Owner)Bartender.OwnerEffect(s,pars["SpEffectParam"].Rows.Single(r=>r.ID==7035700));
  if(h.Id==95000500)Set(s,"changeHpEstusFlaskCorrectRate",.5f);
- if(h.Id==95001400){Set(s,"artsConsumptionRate",0f);}
+ if(h.Id==MasterOfArms.Owner){
+  Set(s,"artsConsumptionRate",0f);
+  MasterOfArms.Configure(s,MasterOfArms.NativeBonus(pars["SpEffectParam"]));
+ }
  if(h.Id==EchoCast.Owner)EchoCast.OwnerEffect(s);
  if(h.Id==Momentum.Owner)Momentum.OwnerEffect(s);
  if(h.Id==PhantomCombo.Owner)PhantomCombo.ConfigureOwner(s,pars["SpEffectParam"].Rows.Single(r=>r.ID==8610100));
@@ -1014,6 +1038,7 @@ foreach(var h in hexes){
  var table=Clone("ItemTableParam",4200000,RewardCatalog.Table(h.Id));Set(table,"disableParam_NT",0);Set(table,"itemId",h.Id);Set(table,"chanceWeight",1000);
 }
 Archmage.Markers((source,id)=>Clone("SpEffectParam",source,id));
+BattleMage.SpeedEffect(Clone("SpEffectParam",BattleMage.NativeSpeed,BattleMage.Speed));
 Slingshot.Mechanics((source,id)=>Clone("SpEffectParam",source,id));
 Parry.Support(Clone);
 NightBlessing.ValidateNative(bnd,Parse);
@@ -1202,6 +1227,7 @@ DevilsGaze.Mechanics(pars,Clone);
 foreach(int id in new[]{6999920,6999921}){
  var row=Clone("SpEffectParam",8000000,id);Set(row,"maxHpRate",1f);Set(row,"saveCategory",-1);Set(row,"spCategory",20);Set(row,"iconId",-1);Set(row,"spEffectTextId_1",-1);Set(row,"displayIconForPermamentEffect",0);Set(row,"effectEndurance",id==6999920?-1f:.001f);
 }
+Sniper.Volley(Clone);
 ChantRework.Mechanics(Clone,pars["SpEffectParam"],pars["SpEffectVfxParam"]);
 // One native three-choice template; the DLL fills the selected goods before creation.
 var rewardEntries=new[]{new RewardCatalog.Entry(RewardCatalog.TemplateLot,new[]{0,1,2})};
@@ -1321,7 +1347,7 @@ File.WriteAllText(Path.Combine(root,".work/effects/escape-serialized.json"),Json
 File.WriteAllText(Path.Combine(root,".work/actions/jiahao-serialized.json"),JsonSerializer.Serialize(new[]{95001300,6999700,6999701,6999705}.Select(id=>new{id,fields=Effect(id).Cells.Where(c=>c!=null).ToDictionary(c=>c.Def.InternalName,c=>c.Value)}),new JsonSerializerOptions{WriteIndented=true}));
 Require(Convert.ToSingle(Effect(95002100)["magicConsumptionRate"].Value)==1f&&Convert.ToSingle(Effect(95002100)["miracleConsumptionRate"].Value)==1f,"Archmage owner must leave primary spell FP consumption unchanged");
 Require(Convert.ToSingle(Effect(EchoCast.Owner)["magicConsumptionRate"].Value)==EchoCast.SpellFpRate&&Convert.ToSingle(Effect(EchoCast.Owner)["miracleConsumptionRate"].Value)==EchoCast.SpellFpRate&&Convert.ToSingle(Effect(EchoCast.Owner)["artsConsumptionRate"].Value)==1f,"Echo spell FP rates or unaffected skill FP rate mismatch");
-Require(Convert.ToSingle(Effect(95001400)["artsConsumptionRate"].Value)==0f&&Convert.ToSingle(Effect(95001400)["magicConsumptionRate"].Value)==1f,"Free skills must not affect spells");
+MasterOfArms.Verify(Effect(MasterOfArms.Owner));
 File.WriteAllText(Path.Combine(root,".work/arts/serialized.json"),JsonSerializer.Serialize(new[]{95001400,6999800,6999801,6999802,6999803}.Select(id=>new{id,fields=Effect(id).Cells.Where(c=>c!=null).ToDictionary(c=>c.Def.InternalName,c=>c.Value)}),new JsonSerializerOptions{WriteIndented=true}));
 bnd.Compression=RegulationCompression.Format;
 var dest=Path.Combine(root,"dist/mod/regulation.bin");Directory.CreateDirectory(Path.GetDirectoryName(dest)!);SFUtil.EncryptNightreignRegulation(dest,bnd,bnd.Compression);
@@ -1464,6 +1490,7 @@ LightningRam.Events(ev);
 ColdJuice.Events(ev);
 PhantomCombo.Events(ev);
 FlowingSwordsman.Events(ev);
+BattleMage.Events(ev);
 Basics.Events(ev);
 Sniper.Events(ev);
 UltimateUnstoppable.Events(ev);
@@ -1477,7 +1504,7 @@ HubCleanup.Events(ev,hexes,effects);
 var eventDest=Path.Combine(root,"dist/mod/event/common.emevd.dcx");Directory.CreateDirectory(Path.GetDirectoryName(eventDest)!);ev.Write(eventDest);var outEv=EMEVD.Read(eventDest);
 bool Same(EMEVD.Event a,EMEVD.Event b)=>a.ID==b.ID&&a.RestBehavior==b.RestBehavior&&a.Name==b.Name&&a.Instructions.Count==b.Instructions.Count&&a.Instructions.Zip(b.Instructions).All(v=>v.First.Bank==v.Second.Bank&&v.First.ID==v.Second.ID&&v.First.Layer==v.Second.Layer&&v.First.ArgData.SequenceEqual(v.Second.ArgData))&&JsonSerializer.Serialize(a.Parameters)==JsonSerializer.Serialize(b.Parameters);
 Require(outEv.Format==origEv.Format&&outEv.Compression==origEv.Compression&&outEv.StringData.SequenceEqual(origEv.StringData)&&outEv.LinkedFileOffsets.SequenceEqual(origEv.LinkedFileOffsets),"EMEVD metadata changed");
-Require(outEv.Events.Select(e=>e.ID).Except(origEv.Events.Select(e=>e.ID)).Order().SequenceEqual(new long[]{9100900,9100901}.Concat(Enumerable.Range(9100910,21).Select(i=>(long)i)).Concat(new long[]{9100940,9100941,9100960,9101100,9101101,9101102,9101103,9101104,9101120,DoubleDip.GrantEvent}).Order())&&origEv.Events.Where(e=>e.ID!=0&&e.ID!=1304&&e.ID!=1111&&e.ID!=9100941).All(e=>Same(e,outEv.Events.Single(o=>o.ID==e.ID))),"Existing events changed");Require(ev.Events.All(e=>Same(e,outEv.Events.Single(o=>o.ID==e.ID))),"Edited events failed readback");
+Require(outEv.Events.Select(e=>e.ID).Except(origEv.Events.Select(e=>e.ID)).Order().SequenceEqual(new long[]{9100900,9100901}.Concat(Enumerable.Range(9100910,21).Select(i=>(long)i)).Concat(new long[]{9100940,9100941,9100960,9101100,9101101,9101102,9101103,9101104,9101120,DoubleDip.GrantEvent,Sniper.SoundEvent}).Order())&&origEv.Events.Where(e=>e.ID!=0&&e.ID!=1304&&e.ID!=1111&&e.ID!=9100941).All(e=>Same(e,outEv.Events.Single(o=>o.ID==e.ID))),"Existing events changed");Require(ev.Events.All(e=>Same(e,outEv.Events.Single(o=>o.ID==e.ID))),"Edited events failed readback");
 var churchReports=new List<object>();
 var churchSources=new[]{
  ("m41_00_00_00",41004700u,"8C9B4F43717A9800E02E1497075AE9C2874808877671364BD5BD0EF7D38D57CA"),

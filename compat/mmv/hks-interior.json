@@ -226,7 +226,7 @@
     "MagicFireLeft3_Upper_onUpdate": {
       "originalHash": "f55b590ff93312bd5ded45dbd8de6edd96fb8c158d49e568df0af03c8cd3f708",
       "nrhexHash": "2947e2568c4eebb38500be1d2830dfdb8b0ca2ae381925807ba1afb0c7f1bf94",
-      "rebuiltNrhexHash": "e9f6d50405030f2a838566e7739dd6621e83fe20eef6412332264a2da0e428bb",
+      "rebuiltNrhexHash": "a1e55bfeac51e778ba6b392c0807ca575af624eb022b13e5e819bf1bcc0eccd7",
       "mmvFunctionHash": "7ba570fcf9d435f370103e1f5bfcc1bcff55acc1460375d35c49ef55de23e1bd",
       "actions": [
         {
@@ -243,6 +243,11 @@
             240,
             275
           ]
+        },
+        {
+          "kind": "replace",
+          "old": "HalfBlendLowerCommonFunction(Event_MagicFireLeftCancel3, lower_state, FALSE)",
+          "new": "HalfBlendLowerCommonFunction(Event_MagicFireLeft3, lower_state, FALSE)"
         }
       ]
     },

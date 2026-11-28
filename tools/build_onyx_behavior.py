@@ -7,6 +7,7 @@ item; never deserialize NR custom nodes with the older Elden Ring registry.
 import argparse
 import hashlib
 import json
+import re
 import struct
 from pathlib import Path
 
@@ -89,6 +90,31 @@ class Graph:
         raw = text.encode() + b'\0'
         return self.append(self.items[model][0], raw, len(raw))[0]
 
+    def animation_names(self, names_array):
+        names = self.refs(names_array)
+        tail = {}
+        for _, clip in self.objects('hkbClipGenerator'):
+            index = struct.unpack_from('<h', self.data, clip + 198)[0]
+            if index >= len(names):
+                label = self.text(self.q(clip + 152))
+                assert re.fullmatch(r'a\d{3}_\d{6}', label), (index, label)
+                assert tail.setdefault(index, label) == label, (index, label)
+        if tail:
+            # MMV's graph has a contiguous suffix of clip indices with no
+            # string entries. Reconstruct it before assigning any new indices.
+            assert sorted(tail) == list(range(len(names), max(tail) + 1))
+            assert len(set(tail.values())) == len(tail)
+            model = names[0]
+            directory, family, filename = self.text(model).rsplit('\\', 2)
+            assert filename.startswith(family + '_') and filename.endswith('.hkx')
+            paths = set(map(self.text, names))
+            for index in sorted(tail):
+                label = tail[index]
+                path = f'{directory}\\{label[:4]}\\{label}.hkx'
+                assert path not in paths, (index, path)
+                names.append(self.string(model, path))
+        return names
+
     def array(self, model, refs):
         kind, old, count = self.items[model]
         t = self.patch_type[old]
@@ -126,7 +152,7 @@ def patch(raw):
     old_patches = {k: v[:] for k, v in g.patches.items()}
     _, strings = g.objects('hkbBehaviorGraphStringData')[0]
     names_array = g.q(strings + 88)
-    names = g.refs(names_array)
+    names = g.animation_names(names_array)
     clips = {g.text(g.q(o + 72)): (i, o) for i, o in g.objects('hkbClipGenerator')}
     allowed = set()
     changes = []

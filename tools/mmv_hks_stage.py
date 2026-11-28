@@ -7,6 +7,7 @@ import struct
 import sys
 
 from hks_bytecode import Reader
+import build_battle_mage_hks as battle_mage
 from mmv_hks_fragments import Fragment, functions
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,6 +74,15 @@ def compose(source, before, after, plan):
             continue
         if name not in named or named[name]['count'] != 1:
             raise ValueError(f'MMV action missing or ambiguous: {name}')
+        if name == battle_mage.FUNCTION:
+            _, code, constants = battle_mage.assemble(old)
+            if (code, constants) != (new['code'], new['constants']):
+                raise ValueError('Battle Mage bytecode differs from the reviewed combo change')
+            function = named[name]
+            for start, end, value in battle_mage.mmv_edits(source[function['body']:function['end']]):
+                add(function['body'] + start, function['body'] + end, value, name + ':battle-mage')
+            adapted.append(name)
+            continue
         argc = struct.unpack('>I', new['header'][4:8])[0]
         if new['code'].endswith(old['code']) and new['constants'][:len(old['constants'])] == old['constants'] and not plan['functions'].get(name, {}).get('forceInterior', False):
             if len(named[name]['args']) != argc:

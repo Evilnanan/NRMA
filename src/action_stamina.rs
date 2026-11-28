@@ -69,10 +69,13 @@ unsafe extern "system" fn consume(context:usize,stats:usize,delta:i32,force:u8){
  }
  if roll_payment(context,actor,stats,delta,force,base){return;}
  let cost=crate::onyx_mastery::cost(context,actor,-delta,base);
- let delta=-crate::flowing_swordsman::context_cost(context,actor,cost,base);
- if storm(context,actor,base){force_debit(stats,-delta);return;}
- let extra=crate::echo_cost::extra(context,-delta,base);
- add(stats,delta,force);
+ let cost=crate::flowing_swordsman::context_cost(context,actor,cost,base);
+ if storm(context,actor,base){force_debit(stats,cost);return;}
+ let extra=crate::echo_cost::extra(context,cost,base);
+ let (cost,extra)=if crate::battle_mage::released(actor,context,base){
+  crate::battle_mage::chain_cost(cost,extra)
+ }else{(cost,extra)};
+ add(stats,-cost,force);
  force_debit(stats,extra);
 }
 unsafe fn roll_payment(context:usize,actor:usize,stats:usize,delta:i32,force:u8,base:usize)->bool{

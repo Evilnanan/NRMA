@@ -3,6 +3,9 @@
 use crate::{*, fission_catalog::ROOTS};
 use std::{collections::{BTreeMap,BTreeSet,VecDeque},sync::Mutex};
 pub const OWNER:i32=95003200;
+const SESSION_RVA:usize=0x3c21ec8;
+const HOST:i32=3;
+const GUEST:i32=6;
 pub const CREATE_RVA:usize=0x57d0a0;
 pub const CREATE_PATTERN:&str="40 56 57 41 56 48 81 EC 80 00 00 00 48 8B 05 ? ? ? ? 48 33 C4 48 89 44 24 50";
 pub const ENCODE_RVA:usize=0x574320;
@@ -18,6 +21,15 @@ pub const REMOVE_GROUP_PATTERN:&str="48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 1
 pub const PICKUP_RVA:usize=0x575490;
 pub const PICKUP_PATTERN:&str="48 89 5C 24 10 48 89 74 24 18 48 89 7C 24 20 55 41 54 41 55 41 56 41 57 48 8D 6C 24 C9 48 81 EC B0 00 00 00 48 8B 05 ? ? ? ? 48 33 C4 48 89 45 27 41 8B F0 44 89 45 E3";
 pub static PICKUP_ORIGINAL:AtomicPtr<u8>=AtomicPtr::new(ptr::null_mut());
+pub const PLACE_RVA:usize=0x575810;
+pub const PLACE_PATTERN:&str="48 89 5C 24 08 48 89 74 24 20 89 54 24 10 57 48 83 EC 20 8B DA 48 8B F9 E8 53 CE 00 00 48 8B F0 48 85 C0";
+pub static PLACE_ORIGINAL:AtomicPtr<u8>=AtomicPtr::new(ptr::null_mut());
+#[path="potential_fission_placement.rs"]
+mod placement;
+pub(crate) use placement::place;
+#[path="potential_fission_sync.rs"]
+pub(crate) mod sync;
+
 pub const GROUP_RVA:usize=0x57a8c5;
 pub const GROUP_PATTERN:&str="0F B7 8A CA 00 00 00 66 0F BA E1 0E 73 0E 66 C1 E9 07 66 83 E1 03";
 pub static CREATE_ORIGINAL:AtomicPtr<u8>=AtomicPtr::new(ptr::null_mut());
@@ -137,6 +149,13 @@ pub unsafe extern "system" fn create(){core::arch::naked_asm!("mov r8,[rsp]","jm
 unsafe extern "system" fn capture(manager:usize,descriptor:usize,caller:usize)->usize{
  let original:unsafe extern "system" fn(usize,usize)->usize=std::mem::transmute(CREATE_ORIGINAL.load(Ordering::Acquire));
  if !ACTIVE.load(Ordering::Acquire)||descriptor==0{return original(manager,descriptor);}
+ // A public weapon placed from a split choice returns through this same native
+ // creator on the host and on the guest who requested it.
+ if read_i32(descriptor+0x58)&0x1f==0x11{
+  let node=original(manager,descriptor);
+  if node!=0{placement::created(manager,descriptor);}
+  return node;
+ }
  let lot=read_i32(descriptor+0xb8);let Some((a,b,count))=root(lot)else{return original(manager,descriptor);};
  let base=BASE.load(Ordering::Acquire);let Some((player,slot))=local(base)else{return original(manager,descriptor);};
  let flags=ptr::read_unaligned((descriptor+0xaa)as*const u16);
@@ -230,13 +249,13 @@ pub unsafe extern "system" fn group(){core::arch::naked_asm!(
  "2:","add rsp,0xc8","popfq","jmp qword ptr [rip+{skip}]",
  callback=sym group_allowed,original=sym GROUP_ORIGINAL,skip=sym GROUP_SKIP
  );}
-pub fn reset(){if let Ok(mut s)=STATE.lock(){*s=State::new();}}
+pub fn reset(){if let Ok(mut s)=STATE.lock(){*s=State::new();}placement::reset();sync::reset();}
 // Native 579FF0 chooses the highest displayed rarity across the choices.
 fn option_tier(flags:u16)->u8{match flags&15{3=>3,2|9=>2,_=>1}}
 pub unsafe extern "system" fn pickup(manager:usize,handle:u32,choice:i32)->usize{
  let base=BASE.load(Ordering::Acquire);
  if ACTIVE.load(Ordering::Acquire)&&manager==read_ptr(base+ITEMS_RVA)&&
-    STATE.lock().is_ok_and(|state|state.locked.contains(&handle)){return 0;}
+    (STATE.lock().is_ok_and(|state|state.locked.contains(&handle))||placement::reserved(manager,handle,base)){return 0;}
  let original:unsafe extern "system" fn(usize,u32,i32)->usize=std::mem::transmute(PICKUP_ORIGINAL.load(Ordering::Acquire));
  original(manager,handle,choice)
 }
@@ -261,9 +280,10 @@ unsafe fn resolve_landing(job:&mut Job,items:usize,base:usize,dt:f32)->bool{
   if read_ptr(node+0x18)==0{head=Some((node,handle));}
  }
  if let Some((node,_))=head{
-  // 5835E0 clears this flag after the native flight update reaches its endpoint.
+  // Wait for native activation even when this original has no flight animation.
+  // 5835E0 clears the flight flag at the end of the native update.
   let flags=ptr::read_unaligned((node+0xca)as*const u16);
-  if ptr::read((node+0xf9)as*const u8)==1||(original&&flags&0x800==0&&job.grace>0.){enqueue(*job);return false;}
+  if ptr::read((node+0xf9)as*const u8)==1||(original&&(flags&0x40==0||flags&0x800==0&&job.grace>0.)){enqueue(*job);return false;}
   job.map=ptr::read_unaligned((node+0x94)as*const u32);
   job.position=ptr::read_unaligned((node+0x98)as*const [f32;3]);
  }
@@ -315,6 +335,7 @@ unsafe fn emit_children(mut job:Job,items:usize,player:usize,base:usize){
 }
 pub unsafe fn update(player:usize,base:usize,dt:f32){
  if has_effect(player,reward_cycle_runtime::RESET,base){reset();return;}
+ placement::finish(read_ptr(base+ITEMS_RVA),base);
  let stats=native_actor::stats(player);
  if !has_effect(player,OWNER,base)||stats==0||native_actor::incapacitated(player,stats){return;}
  let Some((_,slot))=local(base)else{return;};let items=read_ptr(base+ITEMS_RVA);

@@ -116,6 +116,17 @@ unsafe fn toward_down(owner:Identity,base:usize,angle:f32,speed:f32)->bool{
 }
 type Env=unsafe extern "system" fn(usize,i32,usize)->i32;
 pub unsafe extern "system" fn env(context:usize,code:i32,vm:usize)->i32{
+ if matches!(code,crate::battle_mage::CROSS_CHAIN|crate::battle_mage::CHAIN_ACCEPTED|crate::battle_mage::CHAIN_FULL_BODY){
+  if !ACTIVE.load(Ordering::Acquire)||context==0{return 0;}
+  let base=BASE.load(Ordering::Acquire);
+  // The full-body query is called without a numeric argument. Reading an
+  // absent argument would interrupt HKS before it dispatches the cast event.
+  let argument=if vm!=0&&code!=crate::battle_mage::CHAIN_FULL_BODY{
+   let number:unsafe extern "system" fn(usize,i32)->f32=std::mem::transmute(base+NUMBER_RVA);
+   number(vm,2) as i32
+  }else{0};
+  return crate::battle_mage::combo_query(read_ptr(context),code,argument,base);
+ }
  if matches!(code,crate::arts_cast::QUERY|crate::arts_cast::REQUEST){
   if ACTIVE.load(Ordering::Acquire)&&context!=0&&vm!=0{
    let base=BASE.load(Ordering::Acquire);
@@ -263,7 +274,10 @@ pub(crate) unsafe fn static_rescue(target:usize,hit:usize,base:usize)->bool{
  party_member(target,base)&&ptr::read((target+0x710)as*const u8)==1&&outgoing_power(target,hit,base,common_row(base))>0
 }
 unsafe extern "system" fn outgoing(module:usize,source:usize,hit:usize){
- if ACTIVE.load(Ordering::Acquire) { crate::flowing_swordsman::outgoing(module,source,hit); }
+ if ACTIVE.load(Ordering::Acquire) {
+  crate::sniper::outgoing(module,source,hit);
+  crate::flowing_swordsman::outgoing(module,source,hit);
+ }
  crate::static_charge::outgoing(module,source,hit);
  crate::cold_juice::outgoing(module,source,hit);
  crate::soul_critical::outgoing(module,source,hit);
@@ -303,6 +317,15 @@ pub unsafe extern "system" fn hit_detour(){
 }
 #[cfg(test)]mod tests{
  use super::*;
+ #[test]
+ #[ignore = "sets the global active flag; run in isolation"]
+ fn battle_mage_full_body_query_does_not_read_a_vm_argument(){
+  let context=[0usize];
+  let was_active=ACTIVE.swap(true,Ordering::AcqRel);
+  let result=unsafe{env(context.as_ptr() as usize,crate::battle_mage::CHAIN_FULL_BODY,1)};
+  ACTIVE.store(was_active,Ordering::Release);
+  assert_eq!(result,0);
+ }
  #[test]fn thirty_degree_boundary_and_invalid_or_coincident_positions(){
   for degrees in [0f32,29.9,30.,30.1,45.,90.,180.,-30.,-30.1]{let r=degrees.to_radians();assert_eq!(within_cone([0.,-1.],[r.sin()*10.,-r.cos()*10.]),degrees.abs()<=30.,"{degrees}");}
   for p in [[0.,0.],[f32::NAN,0.],[0.,f32::INFINITY]]{assert!(!within_cone([0.,-1.],p));}

@@ -12,12 +12,15 @@ static class Archmage {
   var binder=SFUtil.DecryptNightreignRegulation(path);
   var tables=new Dictionary<string,object>();
   foreach(var name in new[]{"Magic","MagicTableParam"}){
-   var fields=name=="Magic"?new[]{"ezStateBehaviorType","isEnchant","isShieldEnchant"}:new[]{"magicId","chanceWeight"};
+   var fields=name=="Magic"?new[]{"ezStateBehaviorType","isEnchant","isShieldEnchant","refType"}:new[]{"magicId","chanceWeight"};
    tables[name]=parse(name,binder.Files.Single(f=>f.Name.Replace('\\','/').Split('/').Last()==name+".param").Bytes).Rows.Select(r=>new{r.ID,fields=fields.ToDictionary(k=>k,k=>r[k].Value)}).ToArray();
   }
-  Check(Hash(path)==hash,"Archmage input changed during export");
+  var animationPath=Path.Combine(Path.GetFullPath(overlay),"mod/chr/c0000.anibnd.dcx");
+  var animationHash=Hash(animationPath);
+  var motions=BattleMage.ComboMotions(animationPath);
+  Check(Hash(path)==hash&&Hash(animationPath)==animationHash,"Archmage input changed during export");
   var output=Path.Combine(root,"work/compat/mmv/archmage-parameters.json");Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-  File.WriteAllText(output,JsonSerializer.Serialize(new{regulationPath=path,regulationSha256=hash,tables}));
+  File.WriteAllText(output,JsonSerializer.Serialize(new{regulationPath=path,regulationSha256=hash,tables,comboMotions=motions,comboExtensions=BattleMage.Extensions(mmv:true),comboAnimationsSha256=animationHash}));
   Console.WriteLine("Exported target Archmage parameters: "+output);
  }
  public static void Markers(Func<int,int,PARAM.Row> clone){
@@ -36,7 +39,15 @@ static class Archmage {
   Check(known.Length==178,"Native spell classification changed");
   var random=ids.Where(id=>Convert.ToInt32(spells[id]["isEnchant"].Value)==0&&Convert.ToInt32(spells[id]["isShieldEnchant"].Value)==0).ToArray();
   Check(random.Length==151&&random.Count(id=>Convert.ToInt32(spells[id]["ezStateBehaviorType"].Value)==0)==64,"Native enchantment exclusions changed");
-  File.WriteAllText(Path.Combine(root,"src/archmage_data.rs"),"// Generated from native MagicTableParam and Magic; classify all native spells independently of the random pool; NT flags are not current availability.\npub const SPELLS:&[(i32,u8)]=&[\n"+string.Join("\n",known.Select(id=>$" ({id},{spells[id]["ezStateBehaviorType"].Value}),"))+"\n];\n// Random choices exclude native weapon/shield enchantments.\npub const RANDOM_SPELLS:&[i32]=&["+string.Join(",",random)+"];\n");
+  var motions=BattleMage.ComboMotions(Path.Combine(root,"assets/original/chr/c0000.anibnd.dcx"));
+  int Motion(int id)=>Convert.ToInt32(spells[id]["refType"].Value);
+  var extensions=BattleMage.Extensions();
+  foreach(var (id,family) in extensions)
+   Check(random.Contains(id)&&Motion(id)==family&&!motions.ContainsKey(family),"Battle Mage extension source changed");
+  var combos=known.Where(id=>motions.ContainsKey(Motion(id))||extensions.ContainsKey(id)).ToArray();
+  Check(combos.Intersect(random).Select(id=>Convert.ToInt32(spells[id]["ezStateBehaviorType"].Value)).Distinct().Count()==2,"Empty native Battle Mage spell type");
+  var traits=combos.Select(id=>$"({id},{Motion(id)},{motions.GetValueOrDefault(Motion(id),3)})");
+  File.WriteAllText(Path.Combine(root,"src/archmage_data.rs"),"// Generated from native MagicTableParam and Magic; classify all native spells independently of the random pool; NT flags are not current availability.\npub const SPELLS:&[(i32,u8)]=&[\n"+string.Join("\n",known.Select(id=>$" ({id},{spells[id]["ezStateBehaviorType"].Value}),"))+"\n];\n// Random choices exclude native weapon/shield enchantments.\npub const RANDOM_SPELLS:&[i32]=&["+string.Join(",",random)+"];\n// Spell, animation family, last chainable stage.\npub const COMBO_SPELLS:&[(i32,u8,u8)]=&["+string.Join(",",traits)+"];\npub const COMBO_EXTENDED_FAMILIES:&[u8]=&["+string.Join(",",extensions.Values.Distinct().Order())+"];\n");
  }
  public static void Stage(string root,BND4 original,Func<string,Memory<byte>,PARAM> parse,Hex[] hexes){
   WriteData(root,original,parse);

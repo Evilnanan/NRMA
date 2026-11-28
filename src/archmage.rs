@@ -59,6 +59,8 @@ impl Archmage {
   let mut spells=self.selected(c).unwrap_or(c.original);spells[slot]=spell;
   self.entries.insert(c.handle,Entry{catalyst:c,spells});self.dirty=true;true
  }
+ pub fn clear_pending(&mut self){self.pending.clear();}
+ pub fn casting(&self)->bool{self.quiet<2}
  pub fn dropped(&mut self,uid:u32,c:Catalyst){
   if uid==0{return;}
   if let Some(spells)=self.selected(c){self.drops.insert(uid,Entry{catalyst:c,spells});}

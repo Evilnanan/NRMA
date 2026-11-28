@@ -5,11 +5,11 @@ pub fn all(count:usize)->HexSet{(0..count).collect()}
 pub fn mask(items:impl IntoIterator<Item=usize>)->HexSet{items.into_iter().collect()}
 fn index(owner:i32)->usize{OWNER_IDS.iter().position(|&id|id==owner).expect("Missing ability in catalog")}
 pub fn pool_exclusions(unavailable:HexSet)->HexSet{unavailable}
-// Run on actual ownership before role/terrain restrictions add unavailable
-// entries: a role-ineligible ability must not imply that it is owned.
 pub fn ownership_exclusions(mut owned:HexSet)->HexSet{
  let sniper=index(crate::sniper::OWNER);let sword=index(crate::sword::OWNER);
  if owned.contains(&sniper)||owned.contains(&sword){owned.extend([sniper,sword]);}
+ let archmage=index(crate::archmage::OWNER);let battle_mage=index(crate::battle_mage::OWNER);
+ if owned.contains(&archmage)||owned.contains(&battle_mage){owned.extend([archmage,battle_mage]);}
  let basics=index(crate::basics::OWNER);
  let conflicts=crate::basics::CONFLICTS.map(index);
  if owned.contains(&basics){owned.extend(conflicts);}
@@ -34,6 +34,7 @@ pub fn weapon_exclusions(mut unavailable:HexSet,affinity:Option<i32>)->HexSet{
   (95000900,!caster_allowed),
   (95003500,!caster_allowed),
   (95002000,!caster_allowed),
+  (crate::battle_mage::OWNER,!caster),
   (95001100,!physical&&!has_sword),
   (95002600,!physical&&!has_sword),
   (95002400,!physical),
@@ -75,12 +76,12 @@ pub fn is_hex_good(encoded:u32)->bool{
 }
 #[cfg(test)]mod tests{
  use super::*;
- #[test]fn live_weapon_affinity_controls_seven_abilities_and_keeps_owned_exceptions(){
+ #[test]fn live_weapon_affinity_controls_eight_abilities_and_keeps_owned_exceptions(){
   for hero in std::iter::once(None).chain((0..=10).map(Some)){for affinity in [None,Some(57),Some(61),Some(1600),Some(1700),Some(1),Some(1100),Some(1400),Some(2000)]{for flags in 0..4{
    let owned=mask([(95002100,flags&1!=0),(95000900,flags&2!=0)].into_iter().filter_map(|(id,on)|on.then_some(index(id))));
    let excluded=combat_exclusions(owned.clone(),hero,affinity);
    let caster=matches!(affinity,Some(57|61|1600|1700));let physical=affinity.is_some()&&!caster;
-   let expected=[(95000900,(caster||flags&1!=0)&&flags&2==0),(95002000,caster||flags&1!=0),(95003500,caster||flags&1!=0),
+   let expected=[(95000900,(caster||flags&1!=0)&&flags&2==0),(95002000,caster||flags&1!=0),(95003500,caster||flags&1!=0),(crate::battle_mage::OWNER,caster&&flags&1==0),
     (95001100,physical||flags&2!=0),(95002600,physical||flags&2!=0),(95002400,physical),(95003100,physical||flags&2!=0),
     (95001800,hero==Some(6)),(95004900,hero==Some(7)),(95001300,!matches!(hero,Some(2|4|6))),(95000400,matches!(hero,Some(1|3|5|7|8)))];
    for (id,allowed)in expected{let ability=index(id);

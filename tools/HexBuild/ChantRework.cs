@@ -2,15 +2,25 @@ using SoulsFormats;
 using System.Text.Json;
 
 static class ChantRework {
- public const int Visual=95002001;
+ public const int Visual=95002001,Ward=95002002;
  static void Check(bool valid,string message){if(!valid)throw new InvalidDataException(message);}
  static void Set(PARAM.Row row,string field,object value)=>row[field].Value=Convert.ChangeType(value,row[field].Value.GetType());
  public static void Mechanics(Func<string,int,int,PARAM.Row> clone,PARAM nativeEffects,PARAM nativeVisuals){
   var hunt=nativeEffects.Rows.Single(row=>row.ID==8970054);
   var visual=nativeVisuals.Rows.Single(row=>row.ID==73110);
   Check(Convert.ToInt32(hunt["vfxId"].Value)==73110&&Convert.ToInt32(visual["initSfxId"].Value)==674895&&Convert.ToInt32(visual["initDmyId"].Value)==220,"Beast's Hunt recovery visual changed");
-  var effect=clone("SpEffectParam",8000000,Visual);
-  foreach(var(field,value)in new(string,object)[]{("maxHpRate",1f),("effectEndurance",0.3f),("saveCategory",-1),("spCategory",20),("iconId",-1),("spEffectTextId_1",-1),("displayIconForPermamentEffect",0),("vfxId",73110)})Set(effect,field,value);
+  PARAM.Row Temporary(int id,float seconds){
+   var row=clone("SpEffectParam",8000000,id);
+   foreach(var(field,value)in new(string,object)[]{("maxHpRate",1f),("effectEndurance",seconds),("saveCategory",-1),("spCategory",20),("iconId",-1),("spEffectTextId_1",-1),("displayIconForPermamentEffect",0)})Set(row,field,value);
+   return row;
+  }
+  var ward=Temporary(Ward,2f);
+  var chargedWard=nativeEffects.Rows.Single(r=>r.ID==8320401);
+  Check(Convert.ToInt32(chargedWard["vfxId"].Value)==340800&&nativeVisuals.Rows.Any(r=>r.ID==340800),"Native charged-hit damage negation visual changed");
+  Set(ward,"vfxId",340800);
+  foreach(string field in LightFooted.DamageFields)Set(ward,field,.75f);
+  var effect=Temporary(Visual,.3f);
+  Set(effect,"vfxId",73110);
   Check(Convert.ToInt32(effect["changeStaminaPoint"].Value)==0&&Convert.ToInt32(effect["staminaRecoverChangeSpeed"].Value)==0,"Visual must not restore stamina or grant the native Hunt buff");
  }
  public static void Stage(string root,BND4 native,Func<string,Memory<byte>,PARAM> parse){
@@ -22,9 +32,10 @@ static class ChantRework {
   var baseline=parse("SpEffectParam",member.Bytes);
   var nativeEffects=parse("SpEffectParam",native.Files.Single(file=>Path.GetFileName(file.Name)=="SpEffectParam.param").Bytes);
   var nativeVisuals=parse("SpEffectVfxParam",native.Files.Single(file=>Path.GetFileName(file.Name)=="SpEffectVfxParam.param").Bytes);
-  var previous=effects.Rows.SingleOrDefault(row=>row.ID==Visual);
+  int PrivateRows(PARAM table)=>table.Rows.Count(row=>row.ID is Visual or Ward);
   Mechanics((table,source,identity)=>{
-   Check(table=="SpEffectParam"&&identity==Visual,"Unexpected parameter edit");
+   Check(table=="SpEffectParam"&&(identity is Visual or Ward),"Unexpected parameter edit");
+   var previous=effects.Rows.SingleOrDefault(row=>row.ID==identity);
    if(previous!=null)effects.Rows.Remove(previous);
    var row=new PARAM.Row(nativeEffects.Rows.Single(row=>row.ID==source)){ID=identity};effects.Rows.Add(row);return row;
   },nativeEffects,nativeVisuals);
@@ -38,13 +49,16 @@ static class ChantRework {
    if(file.ID!=member.ID)Check(file.Bytes.Span.SequenceEqual(original[file.ID]),"Unrelated parameter table changed");
   }
   var final=parse("SpEffectParam",read.Files.Single(file=>file.ID==member.ID).Bytes);
-  Check(final.Rows.Count==baseline.Rows.Count+(previous==null?1:0),"Unexpected row count");
-  foreach(var row in baseline.Rows.Where(row=>row.ID!=Visual))Check(CageAI.Same(row,final.Rows.Single(candidate=>candidate.ID==row.ID)),"Unrelated effect changed");
-  Check(CageAI.Same(effects.Rows.Single(row=>row.ID==Visual),final.Rows.Single(row=>row.ID==Visual)),"Visual readback mismatch");
+  Check(PrivateRows(final)==2&&final.Rows.Count==baseline.Rows.Count+2-PrivateRows(baseline),"Unexpected row count");
+  var byId=final.Rows.ToDictionary(row=>row.ID);
+  foreach(var row in baseline.Rows.Where(row=>row.ID is not (Visual or Ward)))Check(MmvCompat.SameCells(row,byId[row.ID],checkNames:true),"Unrelated effect changed");
+  foreach(int id in new[]{Visual,Ward})Check(MmvCompat.SameCells(effects.Rows.Single(row=>row.ID==id),byId[id],checkNames:true),"Chant effect readback mismatch");
+  var ward=final.Rows.Single(row=>row.ID==Ward);
+  Check(Convert.ToSingle(ward["effectEndurance"].Value)==2f&&Convert.ToInt32(ward["vfxId"].Value)==340800&&Convert.ToInt32(ward["spCategory"].Value)==20&&LightFooted.DamageFields.All(f=>Convert.ToSingle(ward[f].Value)==.75f),"Expected a refreshable two-second 25% ward");
   string Hash(string path)=>Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path)));
-  File.WriteAllText(Path.Combine(directory,"parameter-validation.json"),JsonSerializer.Serialize(new{inputSha256=Hash(input),outputSha256=Hash(output),effect=Visual,nativeVisual=73110,initialSfx=674895,stamina=30,visualOnly=true,unrelatedParametersUnchanged=true,gameplayVerified=false},new JsonSerializerOptions{WriteIndented=true}));
+  File.WriteAllText(Path.Combine(directory,"parameter-validation.json"),JsonSerializer.Serialize(new{inputSha256=Hash(input),outputSha256=Hash(output),effect=Visual,nativeVisual=73110,initialSfx=674895,stamina=30,ward=Ward,durationSeconds=2,damageTakenRate=.75f,unrelatedParametersUnchanged=true,gameplayVerified=false},new JsonSerializerOptions{WriteIndented=true}));
   HexTexts.Stage(root,HexCatalog.Load(root),Path.Combine(directory,"texts"),allRewards:true,onlyIds:new[]{95002000});
-  Console.WriteLine("PASS: isolated Beast's Hunt recovery visual and Chant text staged; unrelated parameters preserved");
+  Console.WriteLine("PASS: Chant ward, Beast's Hunt visual and bilingual text staged; unrelated parameters preserved");
  }
  public static void Probe(string root,BND4 native,Func<string,Memory<byte>,PARAM> parse){
   var directory=Path.Combine(root,"work/chant-rework");Directory.CreateDirectory(directory);

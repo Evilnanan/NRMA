@@ -28,6 +28,7 @@ mod level_rewards;
 mod personal_reward;
 mod fission_catalog;
 mod potential_fission;
+use potential_fission::sync as fission_sync;
 #[cfg(test)]mod reward_template_native_tests;
 mod red_envelope;
 mod snack;
@@ -38,6 +39,8 @@ mod marking;
 mod basics;
 mod deliberate_punch;
 mod sniper;
+mod sniper_aim;
+mod direct_bullet;
 mod wraith;
 mod metal;
 mod double_dip;
@@ -59,6 +62,7 @@ mod soul_target;
 mod soul_impact;
 mod onyx_mastery;
 mod flowing_swordsman;
+mod battle_mage;
 mod light_footed;
 mod glass_cannon;
 mod parry;
@@ -396,7 +400,7 @@ const NEW_392810_PATTERN:&str="48 89 5C 24 10 48 89 74 24 18 55 57 41 56 48 8D 6
 const NEW_66C7D0_PATTERN:&str="40 53 48 83 EC 20 48 8B 81 A0 05 00 00 48 85 C0 75 05 E8 D9 00 BA FF 8B 58 08 E8 D1 19 B9 FF 84";
 
 const NEAR_DEATH_STATE_PATTERN:&str="80 B9 10 07 00 00 01 0F 94 C0 C3";
- fn signatures()->[(&'static str,u32);259] {
+fn signatures()->[(&'static str,u32);272] {
  [(phantom_combo::visual::MATERIAL_PATTERN,phantom_combo::visual::MATERIAL_RVA as u32),(phantom_combo_points::SOURCE_PATTERN,phantom_combo_points::SOURCE_RVA as u32),(phantom_combo::visual::TICK_PATTERN,phantom_combo::visual::TICK_RVA as u32),(phantom_combo_points::DISPATCH_PATTERN,phantom_combo_points::DISPATCH_RVA as u32),(phantom_combo_points::CHECK_PATTERN,phantom_combo_points::CHECK_RVA as u32),
   (impact::REBUILD_PATTERN,impact::REBUILD_RVA as u32),(ram_damage::PATTERN,ram_damage::RVA as u32),
   (night_blessing::COLLECT_PATTERN,night_blessing::COLLECT_RVA as u32),
@@ -417,8 +421,11 @@ const NEAR_DEATH_STATE_PATTERN:&str="80 B9 10 07 00 00 01 0F 94 C0 C3";
   (sword_projectile::MODE_PATTERN,sword_projectile::MODE_RVA as u32),
   (sword_projectile::PARAM_PATTERN,sword_projectile::PARAM_RVA as u32),
   (sword_projectile::MOTION_PATTERN,sword_projectile::MOTION_RVA as u32),
-  (potential_fission::PICKUP_PATTERN,potential_fission::PICKUP_RVA as u32),(potential_fission::REMOVE_GROUP_PATTERN,potential_fission::REMOVE_GROUP_RVA as u32),
+  (potential_fission::PICKUP_PATTERN,potential_fission::PICKUP_RVA as u32),(potential_fission::PLACE_PATTERN,potential_fission::PLACE_RVA as u32),(potential_fission::REMOVE_GROUP_PATTERN,potential_fission::REMOVE_GROUP_RVA as u32),
   (potential_fission::ENCODE_PATTERN,potential_fission::ENCODE_RVA as u32),(potential_fission::DECODE_PATTERN,potential_fission::DECODE_RVA as u32),
+  (fission_sync::LOCAL_PATTERN,fission_sync::LOCAL_RVA as u32),(fission_sync::REQUEST_PATTERN,fission_sync::REQUEST_RVA as u32),
+  (fission_sync::HANDOVER_PATTERN,fission_sync::HANDOVER_RVA as u32),(fission_sync::RESEND_PATTERN,fission_sync::RESEND_RVA as u32),
+  (fission_sync::RECEIVE_PATTERN,fission_sync::RECEIVE_RVA as u32),(fission_sync::PUMP_PATTERN,fission_sync::PUMP_RVA as u32),
   (echo_cast::FACTORY_PATTERN,echo_cast::FACTORY_RVA as u32),(echo_cast::TARGET_COPY_PATTERN,echo_cast::TARGET_COPY_RVA as u32),(echo_cast::RELEASE_PATTERN,echo_cast::RELEASE_RVA as u32),(echo_cast::TARGET_VALID_PATTERN,echo_cast::TARGET_VALID_RVA as u32),(light_footed::TAE_PATTERN,light_footed::TAE_RVA as u32),(ambulance::ENV_PATTERN,ambulance::ENV_RVA as u32),(ambulance::NUMBER_PATTERN,ambulance::NUMBER_RVA as u32),(ambulance::COST_PATTERN,ambulance::COST_RVA as u32),(ambulance::HIT_PATTERN,ambulance::HIT_RVA as u32),(ambulance::MODE_PATTERN,ambulance::MODE_RVA as u32),(ambulance::COMMON_PATTERN,ambulance::COMMON_RVA as u32),(ambulance::FORMULA_PATTERN,ambulance::FORMULA_RVA as u32),(potential_fission::LOOKUP_PATTERN,potential_fission::LOOKUP_RVA as u32),(potential_fission::CREATE_PATTERN,potential_fission::CREATE_RVA as u32),(potential_fission::GROUP_PATTERN,potential_fission::GROUP_RVA as u32),(death_dance::DEBIT_PATTERN,death_dance::DEBIT_RVA as u32),(erosion::PATTERN,erosion::RVA as u32),(erosion::IMMUNE_PATTERN,erosion::IMMUNE_RVA as u32),(death_dance::PATTERN,death_dance::RVA as u32),(death_dance::SET_PATTERN,death_dance::SET_RVA as u32),(death_dance::FINISH_PATTERN,death_dance::FINISH_RVA as u32),(sword_regain::DESCRIPTOR_PATTERN,sword_regain::DESCRIPTOR_RVA as u32),(sword_regain::RATE_PATTERN,sword_regain::RATE_RVA as u32),(sword_regain::DIRECT_PATTERN,sword_regain::DIRECT_RVA as u32),(sword_regain::RECEIVED_PATTERN,sword_regain::RECEIVED_RVA as u32),(sword_hit_rules::PATTERN,sword_hit_rules::RVA as u32),(slingshot_runtime::PATTERN,slingshot_runtime::RVA as u32),(slingshot_runtime::HORIZONTAL_PATTERN,slingshot_runtime::HORIZONTAL_RVA as u32),(devils_gaze_hit::PATTERN,devils_gaze_hit::RVA as u32),(devils_gaze_hit::LOOKUP_PATTERN,devils_gaze_hit::LOOKUP_RVA as u32),(devils_gaze_audio::REQUEST_PATTERN,devils_gaze_audio::REQUEST_RVA as u32),(devils_gaze_runtime::EMIT_PATTERN,devils_gaze_runtime::EMIT_RVA as u32),(devils_gaze_runtime::DEPTH_PATTERN,devils_gaze_runtime::DEPTH_RVA as u32),(STAMINA_ADD_PATTERN,STAMINA_ADD_RVA as u32),(STAMINA_SET_PATTERN,0x427f00),(WORLD_PATTERN,0x3e0ace),(SPAWN_PATTERN,SPAWN_RVA as u32),
   (snack::PRICE_PATTERN,snack::PRICE_RVA as u32),(snack::SPEND_PATTERN,snack::SPEND_RVA as u32),(snack::BUY_A_PATTERN,snack::BUY_A_RVA as u32),(snack::BUY_B_PATTERN,snack::BUY_B_RVA as u32),(snack::ITEM_A_PATTERN,snack::ITEM_A_RVA as u32),(snack::ITEM_B_PATTERN,snack::ITEM_B_RVA as u32),(snack::RARITY_PATTERN,snack::RARITY_RVA as u32),
   (metal::CONSUME_PATTERN,metal::CONSUME_RVA as u32),(metal::QUANTITY_PATTERN,0x1f5ca0),
@@ -453,7 +460,9 @@ const NEAR_DEATH_STATE_PATTERN:&str="80 B9 10 07 00 00 01 0F 94 C0 C3";
   (erosion::COLLECT_PATTERN,erosion::COLLECT_RVA as u32),
   (erosion::CONTACT_PATTERN,erosion::CONTACT_RVA as u32),
   (erosion::SOURCE_COPY_PATTERN,erosion::SOURCE_COPY_RVA as u32),(erosion::SOURCE_ID_PATTERN,erosion::SOURCE_ID_RVA as u32),
-  (archmage_cost::SELECT_PATTERN,archmage_cost::SELECT_RVA as u32),(archmage_cost::COST_PATTERN,archmage_cost::COST_RVA as u32),(archmage_runtime::PATTERN,archmage_runtime::RVA as u32),(glass_cannon::OBJECT_PATTERN,glass_cannon::OBJECT_RVA as u32),(glass_cannon::PATTERN,glass_cannon::RVA as u32),(DAMAGE_PATTERN,DAMAGE_RVA as u32),(FORWARD_PATTERN,FORWARD_RVA as u32),(POSITION_PATTERN,POSITION_RVA as u32),
+  (archmage_cost::SELECT_PATTERN,archmage_cost::SELECT_RVA as u32),(archmage_cost::COST_PATTERN,archmage_cost::COST_RVA as u32),(archmage_runtime::PATTERN,archmage_runtime::RVA as u32),(glass_cannon::OBJECT_PATTERN,glass_cannon::OBJECT_RVA as u32),(glass_cannon::PATTERN,glass_cannon::RVA as u32),(DAMAGE_PATTERN,DAMAGE_RVA as u32),(FORWARD_PATTERN,FORWARD_RVA as u32),
+  (sniper_aim::SCOPED_PATTERN,sniper_aim::SCOPED_RVA as u32),(sniper_aim::AIM_EFFECT_PATTERN,sniper_aim::AIM_EFFECT_RVA as u32),
+  (sniper::NEAREST_TARGET_PATTERN,sniper::NEAREST_TARGET_RVA as u32),(sniper::ACTOR_TARGET_PATTERN,sniper::ACTOR_TARGET_RVA as u32),(POSITION_PATTERN,POSITION_RVA as u32),
   (ACTION_REQUEST_PATTERN,ACTION_REQUEST_RVA as u32),
   (FLASK_COUNT_PATTERN,FLASK_COUNT_RVA as u32),
   (GAME_DATA_PATTERN,0x1fd598),(REWARD_CREATE_PATTERN,REWARD_CREATE_RVA as u32),
@@ -465,6 +474,8 @@ const NEAR_DEATH_STATE_PATTERN:&str="80 B9 10 07 00 00 01 0F 94 C0 C3";
   (spirit_runtime::RECEIVE_PATTERN,spirit_runtime::RECEIVE_RVA as u32),
   (STATUS_SORT_PATTERN,STATUS_SORT_RVA as u32),(HUD_SORT_PATTERN,HUD_SORT_RVA as u32),(SPEED_PATTERN,SPEED_RVA as u32),(flowing_swordsman::STEP_PATTERN,flowing_swordsman::STEP_RVA as u32),(HIT_BUILD_PATTERN,HIT_BUILD_RVA as u32),(MAGIC_ANIM_PATTERN,0x456870),
   (ATTACK_RATES_PATTERN,ATTACK_RATES_RVA as u32),(EFFECT_FILTER_PATTERN,EFFECT_FILTER_RVA as u32),
+  (battle_mage::pose_blend::PATTERN,battle_mage::pose_blend::RVA as u32),
+  (battle_mage::MOTION_OFFSET_PATTERN,battle_mage::MOTION_OFFSET_RVA as u32),
   (ability_damage::BASE_PATTERN,ability_damage::BASE_RVA as u32),
   (FALL_HEIGHT_PATTERN,FALL_HEIGHT_RVA as u32),
   (SPRING_HEIGHT_PATTERN,SPRING_HEIGHT_RVA as u32),(SPRING_CONTEXT_PATTERN,0x3fa4c0),
@@ -619,6 +630,7 @@ fn extra_hook_targets()->Vec<(usize,*const u8,&'static AtomicPtr<u8>)>{
 
 
    (potential_fission::PICKUP_RVA,potential_fission::pickup as *const u8,&potential_fission::PICKUP_ORIGINAL),
+   (potential_fission::PLACE_RVA,potential_fission::place as *const u8,&potential_fission::PLACE_ORIGINAL),
    (potential_fission::ENCODE_RVA,potential_fission::encode as *const u8,&potential_fission::ENCODE_ORIGINAL),
    (potential_fission::DECODE_RVA,potential_fission::decode as *const u8,&potential_fission::DECODE_ORIGINAL),
    (potential_fission::CREATE_RVA,potential_fission::create as *const u8,&potential_fission::CREATE_ORIGINAL),
@@ -670,6 +682,7 @@ fn extra_hook_targets()->Vec<(usize,*const u8,&'static AtomicPtr<u8>)>{
    (hero_audio::RVA,hero_audio::detour as *const u8,&hero_audio::ORIGINAL),
    (cage_hud::RVA,cage_hud::detour as *const u8,&cage_hud::ORIGINAL),
    (archmage_runtime::RVA,archmage_runtime::wrapper as *const u8,&archmage_runtime::ORIGINAL),
+   (battle_mage::MOTION_OFFSET_RVA,battle_mage::motion_offset as *const u8,&battle_mage::MOTION_OFFSET_ORIGINAL),
    (archmage_cost::SELECT_RVA,archmage_cost::select as *const u8,&archmage_cost::SELECT_ORIGINAL),
    (archmage_cost::COST_RVA,archmage_cost::wrapper as *const u8,&archmage_cost::COST_ORIGINAL),
    (DEATH_RVA,death_detour as *const u8,&DEATH_ORIG),
@@ -729,6 +742,9 @@ unsafe extern "system" fn worker(_:*mut c_void)->u32 {
   let charge_target=base.add(flowing_swordsman::STEP_RVA) as *mut u8;
   let charge_prepared=hook::prepare(charge_target,flowing_swordsman::graph_step as *const u8,10)?;
   flowing_swordsman::STEP_ORIG.store(charge_prepared.trampoline,Ordering::Release);
+  let cast_pose_target=base.add(battle_mage::pose_blend::RVA) as *mut u8;
+  let cast_pose_prepared=hook::prepare(cast_pose_target,battle_mage::pose_blend::generate as *const u8,5)?;
+  battle_mage::pose_blend::ORIGINAL.store(cast_pose_prepared.trampoline,Ordering::Release);
   let speed_target=base.add(SPEED_RVA) as *mut u8;
   let speed_prepared=hook::prepare(speed_target,speed_detour as *const u8,6)?;
   if speed_prepared.stolen!=5{return Err("Speed getter must steal exactly its five-byte MOVSS".into());}
@@ -813,6 +829,7 @@ unsafe extern "system" fn worker(_:*mut c_void)->u32 {
   #[cfg(feature="cage-lifecycle-probe")]
   arts_transfer_prepared.extend(cage_lifecycle_probe::prepare(base as usize)?);
   arts_transfer_prepared.extend(ram_sync::prepare(base as usize)?);
+  arts_transfer_prepared.extend(fission_sync::prepare(base as usize)?);
   #[cfg(feature="ram-sync-probe")]
   arts_transfer_prepared.extend(ram_sync_probe::prepare(base as usize)?);
   #[cfg(feature="cage-demand")]
@@ -835,6 +852,7 @@ unsafe extern "system" fn worker(_:*mut c_void)->u32 {
   let mut patches:Vec<(*mut u8,&[u8])>=vec![
    (speed_target,&speed_prepared.patch),
    (charge_target,&charge_prepared.patch),
+   (cast_pose_target,&cast_pose_prepared.patch),
    (apply_target,&apply_prepared.patch),
    (sort_target,&sort_prepared.patch),
    (hud_sort_target,&hud_sort_prepared.patch),
@@ -1163,7 +1181,6 @@ unsafe extern "system" fn on_rear_calculated(module:usize,source:usize,hit:usize
  }
  basics::calculated(local,target,source,hit,base);
  if source!=local{return;}
- sniper::calculated(local,target,source,hit,base);
  damage=read_i32(hit+0x280);
  if damage>0&&noisy::lava_attack(read_i32(hit+0x40),read_i32(hit+0x44)){
   // Native calculation already includes eligible fire/ordinary attack buffs.
@@ -1295,7 +1312,7 @@ unsafe fn arts_transfers_enabled()->bool{
  if !ACTIVE.load(Ordering::Acquire){return false;}
  let base=BASE.load(Ordering::Acquire);let world=read_ptr(base+WORLD_RVA);
  if world==0{return false;}let player=read_ptr(world+0x174e8);
- player!=0&&(has_effect(player,arts::OWNER,base)||has_effect(player,archmage::OWNER,base)||has_effect(player,lightning_ram::OWNER,base))
+ player!=0&&(has_effect(player,arts::OWNER,base)||archmage_runtime::owns_overlay(player,base)||has_effect(player,lightning_ram::OWNER,base))
 }
 unsafe extern "system" fn arts_drop_detour(menu:usize,quantity:i32,flag:u8)->usize{
  let original:unsafe extern "system" fn(usize,i32,u8)->usize=std::mem::transmute(ARTS_DROP_ORIG.load(Ordering::Acquire));
@@ -2423,7 +2440,9 @@ unsafe fn chant_pulse(player:usize,base:usize){
  // Same signed integer addition/clamping API as native HKS act(1001).
  if completed{
   let add:unsafe extern "system" fn(usize,i32,u8)=std::mem::transmute(base+STAMINA_ADD_RVA);add(stats,chant::RESTORE,0);
-  let apply:unsafe extern "system" fn(usize,i32,u8)->u8=std::mem::transmute(base+APPLY_SELF_RVA);apply(player,chant::VISUAL,0);
+  let apply:unsafe extern "system" fn(usize,i32,u8)->u8=std::mem::transmute(base+APPLY_SELF_RVA);
+  apply(player,chant::WARD,0);
+  apply(player,chant::VISUAL,0);
  }
 }
 unsafe extern "system" fn on_update(player:usize,dt:f32) {
@@ -2449,6 +2468,7 @@ unsafe extern "system" fn on_update(player:usize,dt:f32) {
  marking::update(player,base);
  basics::update(player,base);
  deliberate_punch::update(player,base);
+ sniper::update(player,base,dt);
  static_charge::update(player,base,dt);
  cold_juice::update(player,base,dt);
  flowing_swordsman::update(player,base);

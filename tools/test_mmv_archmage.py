@@ -19,6 +19,16 @@ class CatalogueRules(unittest.TestCase):
         self.assertEqual(r['excludedEnchantments'], [3,4])
         self.assertEqual(r['excludedSpecial'], [6])
 
+    def test_battle_mage_combo_motions_use_target_animations(self):
+        raw = self.fixture()
+        raw['comboMotions'] = {'1':3, '7':2}
+        for row, motion in zip(raw['tables']['Magic'], [1, 7, 2, 2, 1, 1]):
+            row['fields']['refType'] = motion
+        source, report = generate(raw)
+        self.assertIn('(1,1,3),(2,7,2),(5,1,3)',source)
+        self.assertEqual(report['comboSpells'], [1, 2, 5])
+        self.assertEqual(report['randomSpells'], [1, 2])
+
     def test_duplicate_lottery_rows_do_not_weight_random_pool(self):
         raw = self.fixture(); raw['tables']['MagicTableParam'] *= 3
         self.assertEqual(generate(raw)[1]['randomSpells'], [1,2])
@@ -36,7 +46,7 @@ class CatalogueRules(unittest.TestCase):
         _, r=generate(raw)
         native=(ROOT/'src/archmage_data.rs').read_text(encoding='utf8')
         old_known={int(i):int(k) for i,k in re.findall(r'\((\d+),(\d+)\)',native)}
-        old_random=set(map(int,re.findall(r'\d+',native.split('RANDOM_SPELLS:&[i32]=&[')[1])))
+        old_random=set(map(int,re.findall(r'\d+',native.split('RANDOM_SPELLS:&[i32]=&[',1)[1].split('];',1)[0])))
         current={row['ID']:row['fields']['ezStateBehaviorType'] for row in raw['tables']['Magic']}
         self.assertTrue(all(current[i]==k for i,k in old_known.items()))
         self.assertTrue(old_random <= set(r['randomSpells']))

@@ -211,6 +211,8 @@ try {
         Copy-Item -LiteralPath 'work/heart-ready/fog-staged/sfxbnd_commoneffects_dlc01.ffxbnd.dcx' -Destination 'dist/mod/sfx/sfxbnd_commoneffects_dlc01.ffxbnd.dcx' -Force
         python -X utf8 tools/build_archmage_hks.py --inplace
         if ($LASTEXITCODE -ne 0) { throw 'Archmage spell-slot script validation failed.' }
+        python -X utf8 tools/build_battle_mage_hks.py dist/mod/action/script/c0000.hks
+        if ($LASTEXITCODE -ne 0) { throw 'Battle Mage combo script validation failed.' }
         python -X utf8 tools/build_slingshot_hks.py --inplace
         if ($LASTEXITCODE -ne 0) { throw 'Slingshot action notification validation failed.' }
         python -X utf8 tools/verify_slingshot_hks.py
@@ -313,6 +315,9 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Onyx action generation failed.' }
         dotnet $hexBuildDll $PSScriptRoot --onyx-check
         if ($LASTEXITCODE -ne 0) { throw 'Onyx mastery resource validation failed.' }
+        $modAssets = Join-Path $PSScriptRoot 'dist/mod'
+        dotnet $hexBuildDll $PSScriptRoot --battle-mage-actions $modAssets $modAssets (Join-Path $PSScriptRoot 'work/battle-mage/standalone-behavior')
+        if ($LASTEXITCODE -ne 0) { throw 'Battle Mage continuation assets failed validation.' }
         python -X utf8 tools/build_marking_hks.py --inplace
         if ($LASTEXITCODE -ne 0) { throw 'Marking follow-up observer patch failed.' }
     }

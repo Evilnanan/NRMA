@@ -233,9 +233,15 @@ def main(argv=None) -> int:
                             '--onyx-behavior-stage', str(mmv / 'mod/chr/c0000.behbnd.dcx'),
                             str(REPORTS / 'staged/mod/chr/c0000.behbnd.dcx'), str(behavior_work)],
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
+            target_mod = str(REPORTS / 'staged/mod')
+            subprocess.run([*hex_build, '--battle-mage-actions', target_mod, target_mod,
+                            str(REPORTS / 'battle-mage-behavior'), '--behavior-only', '--mmv'],
+                           cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         behavior = json.loads((behavior_work / 'validation.json').read_text(encoding='utf8'))
         report['onyxBehaviorAdapter'] = behavior
-        report['partialPreview']['files'][behavior['file']] = behavior['sha256']
+        battle_mage_behavior = digest(REPORTS / 'staged/mod' / behavior['file'])
+        report['battleMageBehavior'] = dict(file=behavior['file'], sha256=battle_mage_behavior)
+        report['partialPreview']['files'][behavior['file']] = battle_mage_behavior
         report['partialPreview']['files']['action/variablenameid.txt'] = digest(REPORTS / 'staged/mod/action/variablenameid.txt')
         report['partialPreview']['files']['chr/c0000_a9x.anibnd.dcx'] = digest(REPORTS / 'staged/mod/chr/c0000_a9x.anibnd.dcx')
         # Apply the private launch-chain revision even when the standalone

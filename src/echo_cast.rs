@@ -169,15 +169,18 @@ pub unsafe extern "system" fn factory(manager:usize,payload:usize,error:usize)->
   }
   ptr::copy_nonoverlapping(ticket.pose.as_ptr(),(payload+0x190)as*mut u8,0x40);
  }
+ crate::sniper::factory(payload,base);
  let seed=if replay.ticket==0{held::capture(scope,payload,base)}else{None};
  let mut ticket=if replay.ticket==0{if scope.descriptor!=0&&!scope.consumed{snapshot(scope,payload,base)}else{held::snapshot(payload,base)}}else{None};
  let continuous=if ticket.as_ref().is_some_and(|ticket|stream::eligible(ticket,payload)){ticket.take().map(|ticket|stream::seed(ticket))}else{None};
  let _stream=stream::factory(continuous.clone());
  let _held=held::factory(seed.clone());
  let _cold=crate::cold_juice::factory(payload);
+ let _aim=crate::sniper_aim::factory(payload,base);
  let _static=crate::static_charge::factory(payload);
  let _flight=crate::sword_projectile::factory_scope(payload);
  let result=original(manager,payload,error);
+ crate::sniper_aim::group_created(result);
  crate::static_charge::factory_done(result);
  crate::cold_juice::group(result);
  held::group(result,seed);
@@ -200,6 +203,7 @@ unsafe fn bind(queue:&mut Queue,group:usize,replay:bool,shots:Shots){
 }
 pub unsafe extern "system" fn initialize(group:usize,out:usize,transform:usize,target:u32,index:u32)->usize{
  let _cold=crate::cold_juice::initialize(group);
+ let _aim=crate::sniper_aim::initialize(group);
  let _static=crate::static_charge::initialize(group);
  let _held=held::initialize(group);
  let continuous=stream::source(group);
@@ -221,6 +225,7 @@ pub unsafe extern "system" fn initialize(group:usize,out:usize,transform:usize,t
  result
 }
 pub unsafe extern "system" fn finish(group:usize){
+ crate::sniper_aim::finished(group);
  crate::static_charge::finished(group);
  crate::cold_juice::finish(group);
  held::finish(group);
